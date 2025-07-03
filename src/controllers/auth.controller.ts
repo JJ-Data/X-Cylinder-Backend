@@ -218,7 +218,7 @@ export class AuthController {
     // Cookie settings for production cross-origin compatibility
     const cookieOptions = {
       httpOnly: true,
-      secure: config.cookie.secure,
+      secure: true, // config.cookie.secure,
       sameSite: 'none' as const, //config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
       maxAge: accessTokenMaxAge,
       path: '/',
@@ -238,7 +238,7 @@ export class AuthController {
   private static clearAuthCookies(res: Response): void {
     const clearOptions = {
       httpOnly: true,
-      secure: config.cookie.secure,
+      secure: true, // config.cookie.secure,
       sameSite: 'none' as const, // config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
       path: '/',
     };
