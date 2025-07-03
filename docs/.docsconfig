@@ -1,0 +1,12 @@
+# Documentation Configuration
+
+# All new documentation should follow this structure:
+# 
+# 1. Feature documentation goes in: docs/features/
+# 2. API documentation goes in: docs/api/
+# 3. Architecture decisions go in: docs/architecture/
+# 4. Deployment guides go in: docs/deployment/
+# 5. Development guides go in: docs/contributing/
+#
+# Use the FEATURE_DOCUMENTATION_TEMPLATE.md when adding new features
+# Update docs/README.md when adding new documentation files
