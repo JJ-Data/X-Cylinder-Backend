@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon",
-    "build": "rm -rf dist && tsc",
+    "build": "rm -rf dist && tsc --project ./",
     "start": "TS_NODE_PROJECT=tsconfig.prod.json node -r tsconfig-paths/register dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
