@@ -2,7 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '@services/auth.service';
 import { ResponseUtil } from '@utils/response';
 import { CONSTANTS } from '@config/constants';
-import { LoginRequest, RegisterRequest, TokenRefreshRequest, AuthTokens } from '@app-types/auth.types';
+import {
+  LoginRequest,
+  RegisterRequest,
+  TokenRefreshRequest,
+  AuthTokens,
+} from '@app-types/auth.types';
 import { config } from '@config/environment';
 import { UnauthorizedError } from '@utils/errors';
 import { User } from '@models/User.model';
@@ -52,7 +57,7 @@ export class AuthController {
     try {
       // Get refresh token from cookie or body (for backward compatibility)
       const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
-      
+
       if (!refreshToken) {
         throw new UnauthorizedError('Refresh token not provided');
       }
@@ -76,7 +81,7 @@ export class AuthController {
     try {
       // Get refresh token from cookie or body
       const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
-      
+
       if (refreshToken) {
         await AuthService.logout(refreshToken);
       }
@@ -180,7 +185,11 @@ export class AuthController {
     }
   }
 
-  public static async getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getCurrentUser(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       if (!req.user) {
         throw new UnauthorizedError('Not authenticated');
@@ -188,7 +197,7 @@ export class AuthController {
 
       // Get fresh user data from database
       const user = await User.findByPk(req.user.id, {
-        attributes: { exclude: ['password'] }
+        attributes: { exclude: ['password'] },
       });
 
       if (!user || !user.isActive) {
@@ -210,7 +219,7 @@ export class AuthController {
     const cookieOptions = {
       httpOnly: true,
       secure: config.cookie.secure,
-      sameSite: config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
+      sameSite: 'none' as const, //config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
       maxAge: accessTokenMaxAge,
       path: '/',
       // Don't set domain - let the proxy handle domain mapping
@@ -230,7 +239,7 @@ export class AuthController {
     const clearOptions = {
       httpOnly: true,
       secure: config.cookie.secure,
-      sameSite: config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
+      sameSite: 'none' as const, // config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
       path: '/',
     };
 
