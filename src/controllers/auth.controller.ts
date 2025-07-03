@@ -206,26 +206,35 @@ export class AuthController {
     const accessTokenMaxAge = 15 * 60 * 1000; // 15 minutes
     const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-    res.cookie('accessToken', tokens.accessToken, {
+    // Cookie settings for production cross-origin compatibility
+    const cookieOptions = {
       httpOnly: true,
       secure: config.cookie.secure,
-      sameSite: config.cookie.sameSite as any,
+      sameSite: config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
       maxAge: accessTokenMaxAge,
       path: '/',
-    });
+      // Don't set domain - let the proxy handle domain mapping
+    };
 
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: config.cookie.secure,
-      sameSite: config.cookie.sameSite as any,
+    const refreshCookieOptions = {
+      ...cookieOptions,
       maxAge: refreshTokenMaxAge,
-      path: '/', // Available for all paths
-    });
+    };
+
+    res.cookie('accessToken', tokens.accessToken, cookieOptions);
+    res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
   }
 
   // Helper method to clear auth cookies
   private static clearAuthCookies(res: Response): void {
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    const clearOptions = {
+      httpOnly: true,
+      secure: config.cookie.secure,
+      sameSite: config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
+      path: '/',
+    };
+
+    res.clearCookie('accessToken', clearOptions);
+    res.clearCookie('refreshToken', clearOptions);
   }
 }
