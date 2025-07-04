@@ -19,19 +19,16 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Check for token in cookie first, then authorization header
-    const cookieToken = req.cookies?.accessToken;
+    // Check for token in authorization header first, then cookie (for backward compatibility)
     const authHeader = req.headers.authorization;
-    console.log('cookieToken', cookieToken);
-    console.log('authHeader', authHeader);
-    console.log('req headers', req.headers);
+    const cookieToken = req.cookies?.accessToken;
 
     let token: string | undefined;
 
-    if (cookieToken) {
-      token = cookieToken;
-    } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
+    } else if (cookieToken) {
+      token = cookieToken;
     }
 
     if (!token) {
@@ -83,16 +80,16 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Check for token in cookie first, then authorization header
-    const cookieToken = req.cookies?.accessToken;
+    // Check for token in authorization header first, then cookie (for backward compatibility)
     const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.accessToken;
 
     let token: string | undefined;
 
-    if (cookieToken) {
-      token = cookieToken;
-    } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
+    } else if (cookieToken) {
+      token = cookieToken;
     }
 
     if (!token) {

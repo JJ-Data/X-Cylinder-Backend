@@ -6,9 +6,7 @@ import {
   LoginRequest,
   RegisterRequest,
   TokenRefreshRequest,
-  AuthTokens,
 } from '@app-types/auth.types';
-import { config } from '@config/environment';
 import { UnauthorizedError } from '@utils/errors';
 import { User } from '@models/User.model';
 
@@ -21,11 +19,8 @@ export class AuthController {
     try {
       const { tokens, user } = await AuthService.register(req.body);
 
-      // Set HTTP-only cookies
-      AuthController.setAuthCookies(res, tokens);
-
-      // Return only non-sensitive user info in response
-      ResponseUtil.created(res, { user }, CONSTANTS.SUCCESS_MESSAGES.REGISTER_SUCCESS);
+      // Return user info and tokens in response body
+      ResponseUtil.created(res, { user, tokens }, CONSTANTS.SUCCESS_MESSAGES.REGISTER_SUCCESS);
     } catch (error) {
       next(error);
     }
@@ -39,11 +34,8 @@ export class AuthController {
     try {
       const { tokens, user } = await AuthService.login(req.body);
 
-      // Set HTTP-only cookies
-      AuthController.setAuthCookies(res, tokens);
-
-      // Return only non-sensitive user info in response
-      ResponseUtil.success(res, { user }, CONSTANTS.SUCCESS_MESSAGES.LOGIN_SUCCESS);
+      // Return user info and tokens in response body
+      ResponseUtil.success(res, { user, tokens }, CONSTANTS.SUCCESS_MESSAGES.LOGIN_SUCCESS);
     } catch (error) {
       next(error);
     }
@@ -55,8 +47,14 @@ export class AuthController {
     next: NextFunction
   ): Promise<void> {
     try {
-      // Get refresh token from cookie or body (for backward compatibility)
-      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+      // Get refresh token from body or Authorization header
+      let refreshToken = req.body.refreshToken;
+      
+      // Check Authorization header for Bearer token
+      const authHeader = req.headers.authorization;
+      if (!refreshToken && authHeader && authHeader.startsWith('Bearer ')) {
+        refreshToken = authHeader.substring(7);
+      }
 
       if (!refreshToken) {
         throw new UnauthorizedError('Refresh token not provided');
@@ -64,10 +62,8 @@ export class AuthController {
 
       const { tokens, user } = await AuthService.refreshTokens(refreshToken);
 
-      // Set new cookies
-      AuthController.setAuthCookies(res, tokens);
-
-      ResponseUtil.success(res, { user }, 'Tokens refreshed successfully');
+      // Return new tokens in response body
+      ResponseUtil.success(res, { user, tokens }, 'Tokens refreshed successfully');
     } catch (error) {
       next(error);
     }
@@ -79,15 +75,18 @@ export class AuthController {
     next: NextFunction
   ): Promise<void> {
     try {
-      // Get refresh token from cookie or body
-      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+      // Get refresh token from body or Authorization header
+      let refreshToken = req.body.refreshToken;
+      
+      // Check Authorization header for Bearer token
+      const authHeader = req.headers.authorization;
+      if (!refreshToken && authHeader && authHeader.startsWith('Bearer ')) {
+        refreshToken = authHeader.substring(7);
+      }
 
       if (refreshToken) {
         await AuthService.logout(refreshToken);
       }
-
-      // Clear cookies
-      AuthController.clearAuthCookies(res);
 
       ResponseUtil.success(res, null, CONSTANTS.SUCCESS_MESSAGES.LOGOUT_SUCCESS);
     } catch (error) {
@@ -210,40 +209,4 @@ export class AuthController {
     }
   }
 
-  // Helper method to set auth cookies
-  private static setAuthCookies(res: Response, tokens: AuthTokens): void {
-    const accessTokenMaxAge = 15 * 60 * 1000; // 15 minutes
-    const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-    // Cookie settings for production cross-origin compatibility
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true, // config.cookie.secure,
-      sameSite: 'none' as const, //config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
-      maxAge: accessTokenMaxAge,
-      path: '/',
-      // Don't set domain - let the proxy handle domain mapping
-    };
-
-    const refreshCookieOptions = {
-      ...cookieOptions,
-      maxAge: refreshTokenMaxAge,
-    };
-
-    res.cookie('accessToken', tokens.accessToken, cookieOptions);
-    res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
-  }
-
-  // Helper method to clear auth cookies
-  private static clearAuthCookies(res: Response): void {
-    const clearOptions = {
-      httpOnly: true,
-      secure: true, // config.cookie.secure,
-      sameSite: 'none' as const, // config.isProduction ? ('none' as const) : (config.cookie.sameSite as 'strict' | 'lax' | 'none'),
-      path: '/',
-    };
-
-    res.clearCookie('accessToken', clearOptions);
-    res.clearCookie('refreshToken', clearOptions);
-  }
 }
