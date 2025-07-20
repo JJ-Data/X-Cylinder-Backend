@@ -10,6 +10,13 @@ const router = Router();
 // All lease routes require authentication
 router.use(authenticate);
 
+// Get pricing quote for lease (Admin and Staff)
+router.get(
+  '/quote',
+  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  leaseController.getPricingQuote
+);
+
 // Get all leases with filters (Admin and Staff)
 router.get(
   '/',

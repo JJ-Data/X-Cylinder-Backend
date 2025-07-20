@@ -4,6 +4,8 @@ import { AppError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
 import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
+import { pricingService } from './pricing.service';
+import { OperationType } from '@models/BusinessSetting.model';
 
 export class RefillService {
   async createRefill(
@@ -59,7 +61,22 @@ export class RefillService {
       // Calculate volume added
       const volumeAdded = data.postRefillVolume - data.preRefillVolume;
 
-      // Create refill record with calculated volume
+      // Calculate refill cost if not provided
+      let refillCost = data.refillCost;
+      if (!refillCost) {
+        const cylinderType = cylinder.getDataValue('type') as string;
+        
+        const refillPricing = await pricingService.calculatePrice({
+          operationType: OperationType.REFILL,
+          cylinderType,
+          quantity: 1,
+          outletId,
+          gasAmount: volumeAdded,
+        });
+        refillCost = refillPricing.totalPrice;
+      }
+
+      // Create refill record with calculated volume and cost
       const refill = await RefillRecord.create(
         {
           cylinderId: data.cylinderId,
@@ -68,7 +85,7 @@ export class RefillService {
           refillDate: new Date(),
           preRefillVolume: data.preRefillVolume,
           postRefillVolume: data.postRefillVolume,
-          refillCost: data.refillCost,
+          refillCost,
           notes: data.notes ? `${data.notes}\nVolume Added: ${volumeAdded}kg` : `Volume Added: ${volumeAdded}kg`,
           batchNumber: data.batchNumber,
         },

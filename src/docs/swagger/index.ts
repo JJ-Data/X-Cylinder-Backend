@@ -12,6 +12,7 @@ import { refillPaths } from './paths/refill.paths';
 import { customerPaths } from './paths/customer.paths';
 import { qrPaths } from './paths/qr.paths';
 import { analyticsPaths } from './paths/analytics.paths';
+import { swapPaths } from './paths/swap.paths';
 import { components } from './components';
 import { schemas } from './schemas';
 
@@ -81,6 +82,10 @@ export const openApiDocument: OpenAPIV3_1.Document = {
       name: 'Analytics',
       description: 'Analytics and reporting endpoints for business insights',
     },
+    {
+      name: 'Swaps',
+      description: 'Cylinder swap management endpoints for replacing leased cylinders',
+    },
   ],
   paths: {
     ...systemPaths,
@@ -94,6 +99,7 @@ export const openApiDocument: OpenAPIV3_1.Document = {
     ...customerPaths,
     ...qrPaths,
     ...analyticsPaths,
+    ...swapPaths,
   } as OpenAPIV3_1.PathsObject,
   components: {
     schemas,

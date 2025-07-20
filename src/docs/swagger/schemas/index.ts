@@ -10,6 +10,7 @@ import { refillSchemas } from './refill.schemas';
 import { customerSchemas } from './customer.schemas';
 import { qrSchemas } from './qr.schemas';
 import { analyticsSchemas } from './analytics.schemas';
+import { swapSchemas } from './swap.schemas';
 
 export const schemas: Record<string, OpenAPIV3_1.SchemaObject> = {
   ...commonSchemas,
@@ -23,4 +24,5 @@ export const schemas: Record<string, OpenAPIV3_1.SchemaObject> = {
   ...customerSchemas,
   ...qrSchemas,
   ...analyticsSchemas,
+  ...swapSchemas,
 };

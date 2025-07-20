@@ -4,6 +4,8 @@ import { AppError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
 import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
+import { pricingService } from './pricing.service';
+import { OperationType } from '@models/BusinessSetting.model';
 
 export class LeaseService {
   async createLease(
@@ -83,8 +85,48 @@ export class LeaseService {
         );
       }
 
+      // Calculate pricing if not provided
+      let depositAmount = data.depositAmount;
+      let leaseAmount = data.leaseAmount;
+
+      if (!depositAmount || !leaseAmount) {
+        const duration = data.duration || 
+          Math.ceil((new Date(data.expectedReturnDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+        // Determine customer tier based on role or default to regular
+        const customerTier: 'regular' | 'business' | 'premium' = 'regular';
+        const cylinderType = cylinder.getDataValue('cylinderType');
+
+        // Calculate lease amount if not provided
+        if (!leaseAmount) {
+          const leasePricing = await pricingService.calculatePrice({
+            operationType: OperationType.LEASE,
+            cylinderType,
+            quantity: 1,
+            customerTier,
+            outletId,
+            customerId: data.customerId,
+            duration,
+          });
+          leaseAmount = leasePricing.totalPrice;
+        }
+
+        // Calculate deposit amount if not provided
+        if (!depositAmount) {
+          const depositPricing = await pricingService.calculatePrice({
+            operationType: OperationType.DEPOSIT,
+            cylinderType,
+            quantity: 1,
+            customerTier,
+            outletId,
+            customerId: data.customerId,
+          });
+          depositAmount = depositPricing.totalPrice;
+        }
+      }
+
       // Validate amounts
-      if (data.depositAmount < 0 || data.leaseAmount < 0) {
+      if (depositAmount < 0 || leaseAmount < 0) {
         throw new AppError('Amounts cannot be negative', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
       }
 
@@ -109,8 +151,8 @@ export class LeaseService {
           staffId,
           leaseDate: new Date(),
           expectedReturnDate: data.expectedReturnDate,
-          depositAmount: data.depositAmount,
-          leaseAmount: data.leaseAmount,
+          depositAmount,
+          leaseAmount,
           notes: data.notes,
           leaseStatus: 'active',
         },

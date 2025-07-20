@@ -8,6 +8,7 @@ import Cylinder from './Cylinder.model';
 import LeaseRecord from './LeaseRecord.model';
 import RefillRecord from './RefillRecord.model';
 import TransferRecord from './TransferRecord.model';
+import SwapRecord from './SwapRecord.model';
 import setupAssociations from './associations';
 
 // Setup model associations
@@ -24,5 +25,6 @@ export {
   LeaseRecord,
   RefillRecord,
   TransferRecord,
+  SwapRecord,
 };
 

@@ -7,6 +7,7 @@ import Cylinder from './Cylinder.model';
 import LeaseRecord from './LeaseRecord.model';
 import RefillRecord from './RefillRecord.model';
 import TransferRecord from './TransferRecord.model';
+import SwapRecord from './SwapRecord.model';
 
 export const setupAssociations = (): void => {
   // User has many RefreshTokens
@@ -189,6 +190,48 @@ export const setupAssociations = (): void => {
   User.hasMany(TransferRecord, {
     foreignKey: 'acceptedById',
     as: 'acceptedTransferRecords',
+  });
+
+  // SwapRecord associations
+  SwapRecord.belongsTo(LeaseRecord, {
+    foreignKey: 'leaseId',
+    as: 'lease',
+  });
+
+  SwapRecord.belongsTo(Cylinder, {
+    foreignKey: 'oldCylinderId',
+    as: 'oldCylinder',
+  });
+
+  SwapRecord.belongsTo(Cylinder, {
+    foreignKey: 'newCylinderId',
+    as: 'newCylinder',
+  });
+
+  SwapRecord.belongsTo(User, {
+    foreignKey: 'staffId',
+    as: 'staff',
+  });
+
+  // Reverse associations for SwapRecord
+  LeaseRecord.hasMany(SwapRecord, {
+    foreignKey: 'leaseId',
+    as: 'swapRecords',
+  });
+
+  Cylinder.hasMany(SwapRecord, {
+    foreignKey: 'oldCylinderId',
+    as: 'oldSwapRecords',
+  });
+
+  Cylinder.hasMany(SwapRecord, {
+    foreignKey: 'newCylinderId',
+    as: 'newSwapRecords',
+  });
+
+  User.hasMany(SwapRecord, {
+    foreignKey: 'staffId',
+    as: 'staffSwapRecords',
   });
 };
 

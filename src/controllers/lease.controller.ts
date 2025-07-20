@@ -4,6 +4,8 @@ import { ResponseUtil } from '@utils/response';
 import { CONSTANTS } from '@config/constants';
 import { asyncHandler } from '@utils/asyncHandler';
 import { AuthRequest } from '@app-types/auth.types';
+import { pricingService } from '@services/pricing.service';
+import { OperationType } from '@models/BusinessSetting.model';
 
 export class LeaseController {
   getLeases = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -122,6 +124,54 @@ export class LeaseController {
     const statistics = await leaseService.getLeaseStatistics(targetOutletId);
     
     return ResponseUtil.success(res, statistics);
+  });
+
+  getPricingQuote = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { cylinderType, customerTier, duration } = req.query;
+    const outletId = req.user!.outletId!;
+
+    if (!cylinderType) {
+      return ResponseUtil.badRequest(res, 'Cylinder type is required');
+    }
+
+    const durationDays = duration ? Number(duration) : 30; // Default 30 days
+
+    // Get lease pricing quote
+    const leasePricing = await pricingService.calculatePrice({
+      operationType: OperationType.LEASE,
+      cylinderType: cylinderType as string,
+      quantity: 1,
+      customerTier: customerTier as 'regular' | 'business' | 'premium' || 'regular',
+      outletId,
+      duration: durationDays,
+    });
+
+    // Get deposit pricing quote
+    const depositPricing = await pricingService.calculatePrice({
+      operationType: OperationType.DEPOSIT,
+      cylinderType: cylinderType as string,
+      quantity: 1,
+      customerTier: customerTier as 'regular' | 'business' | 'premium' || 'regular',
+      outletId,
+    });
+
+    const quote = {
+      leaseAmount: leasePricing.totalPrice,
+      depositAmount: depositPricing.totalPrice,
+      duration: durationDays,
+      cylinderType,
+      customerTier: customerTier || 'regular',
+      breakdown: {
+        lease: leasePricing.breakdown,
+        deposit: depositPricing.breakdown,
+      },
+      appliedRules: {
+        lease: leasePricing.appliedRules,
+        deposit: depositPricing.appliedRules,
+      },
+    };
+
+    return ResponseUtil.success(res, quote, 'Pricing quote generated successfully');
   });
 }
 

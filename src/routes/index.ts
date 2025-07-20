@@ -10,6 +10,8 @@ import { customerRoutes } from './customer.routes';
 import { qrRoutes } from './qr.routes';
 import { analyticsRoutes } from './analytics.routes';
 import transferRoutes from './transfer.routes';
+import swapRoutes from './swap.routes';
+import settingsRoutes from './settings.routes';
 import { ApiResponse } from '@app-types/common.types';
 import { CONSTANTS } from '@config/constants';
 import { config } from '@config/environment';
@@ -42,6 +44,8 @@ router.use('/customers', customerRoutes);
 router.use('/qr', qrRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/transfers', transferRoutes);
+router.use('/swaps', swapRoutes);
+router.use('/settings', settingsRoutes);
 
 // API root endpoint
 router.get('/', (_req, res) => {
@@ -60,6 +64,8 @@ router.get('/', (_req, res) => {
       qr: '/qr',
       analytics: '/analytics',
       transfers: '/transfers',
+      swaps: '/swaps',
+      settings: '/settings',
     },
   });
 });

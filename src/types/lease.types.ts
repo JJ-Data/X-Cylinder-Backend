@@ -45,8 +45,9 @@ export interface CreateLeaseDto {
   qrCode?: string;
   customerId: number;
   expectedReturnDate?: Date;
-  depositAmount: number;
-  leaseAmount: number;
+  depositAmount?: number; // Optional - will be calculated if not provided
+  leaseAmount?: number; // Optional - will be calculated if not provided
+  duration?: number; // Duration in days for pricing calculation
   notes?: string;
 }
 
