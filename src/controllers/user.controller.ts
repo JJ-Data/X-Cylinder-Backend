@@ -4,6 +4,51 @@ import { ResponseUtil } from '@utils/response';
 import { CONSTANTS } from '@config/constants';
 
 export class UserController {
+  public static async createUser(
+    req: Request<{}, {}, {
+      email: string;
+      name: string;
+      password: string;
+      role: string;
+      outletId?: number;
+    }>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const user = await UserService.createUser(req.body);
+
+      ResponseUtil.success(res, user, CONSTANTS.SUCCESS_MESSAGES.RESOURCE_CREATED);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async updateUser(
+    req: Request<{ id: string }, {}, {
+      name?: string;
+      role?: string;
+      outletId?: number;
+      phoneNumber?: string;
+      alternatePhone?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+    }>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const user = await UserService.updateUser(userId, req.body);
+
+      ResponseUtil.success(res, user, CONSTANTS.SUCCESS_MESSAGES.RESOURCE_UPDATED);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   public static async getProfile(
     req: Request,
     res: Response,

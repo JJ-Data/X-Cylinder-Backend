@@ -2,6 +2,7 @@ import User from './User.model';
 import RefreshToken from './RefreshToken.model';
 import PasswordResetToken from './PasswordResetToken.model';
 import EmailVerificationToken from './EmailVerificationToken.model';
+import LoginSession from './LoginSession.model';
 import Outlet from './Outlet.model';
 import Cylinder from './Cylinder.model';
 import LeaseRecord from './LeaseRecord.model';
@@ -45,6 +46,19 @@ export const setupAssociations = (): void => {
 
   // EmailVerificationToken belongs to User
   EmailVerificationToken.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user',
+  });
+
+  // User has many LoginSessions
+  User.hasMany(LoginSession, {
+    foreignKey: 'userId',
+    as: 'loginSessions',
+    onDelete: 'CASCADE',
+  });
+
+  // LoginSession belongs to User
+  LoginSession.belongsTo(User, {
     foreignKey: 'userId',
     as: 'user',
   });

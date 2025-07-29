@@ -6,6 +6,9 @@ import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
 import { settingsService } from './settings.service';
 import { OperationType } from '@models/BusinessSetting.model';
+import { EmailService } from './email.service';
+import { SwapReceiptEmail } from './email/templates/SwapReceiptEmail';
+import { logger } from '@utils/logger';
 
 export class SwapService {
   async createSwap(
@@ -160,7 +163,18 @@ export class SwapService {
         await t.commit();
       }
 
-      return await this.getSwapById(swap.getDataValue('id') as number);
+      // Get the full swap record with associated data for email
+      const fullSwapRecord = await this.getSwapById(swap.getDataValue('id') as number);
+
+      // Send swap receipt email
+      try {
+        await this.sendSwapReceiptEmail(fullSwapRecord);
+      } catch (emailError) {
+        logger.error('Failed to send swap receipt email:', emailError);
+        // Don't throw error - swap was successful, email is secondary
+      }
+
+      return fullSwapRecord;
     } catch (error) {
       if (!transaction) {
         await t.rollback();
@@ -648,6 +662,50 @@ export class SwapService {
       currentGasVolume: parseFloat(String(cylinder.getDataValue('currentGasVolume'))),
       maxGasVolume: parseFloat(String(cylinder.getDataValue('maxGasVolume'))),
     }));
+  }
+
+  private async sendSwapReceiptEmail(swapRecord: SwapRecordPublicData): Promise<void> {
+    const customer = swapRecord.lease?.customer;
+    const outlet = swapRecord.lease?.outlet;
+    const staff = swapRecord.staff;
+    const oldCylinder = swapRecord.oldCylinder;
+    const newCylinder = swapRecord.newCylinder;
+
+    if (!customer?.email) {
+      logger.warn(`No email found for customer in swap ID: ${swapRecord.id}`);
+      return;
+    }
+
+    const emailData: any = {
+      to: customer.email,
+      customerName: `${customer.firstName} ${customer.lastName}`.trim(),
+      swapId: swapRecord.id.toString(),
+      oldCylinderCode: oldCylinder?.cylinderCode || 'N/A',
+      newCylinderCode: newCylinder?.cylinderCode || 'N/A',
+      cylinderType: newCylinder?.type || oldCylinder?.type || 'Standard',
+      oldCylinderCondition: swapRecord.condition,
+      newCylinderCondition: 'good', // Assume new cylinder is in good condition
+      swapReason: swapRecord.reasonForFee || `Cylinder condition: ${swapRecord.condition}`,
+      swapFee: swapRecord.swapFee,
+      swapDate: new Date(swapRecord.swapDate),
+      outletName: outlet?.name || 'Unknown Outlet',
+      outletLocation: outlet?.location || 'Location not specified',
+      operatorName: staff ? `${staff.firstName} ${staff.lastName}`.trim() : 'Staff Member',
+      notes: swapRecord.notes || undefined,
+      companyName: process.env.COMPANY_NAME || 'CylinderX',
+      supportEmail: process.env.SUPPORT_EMAIL || 'support@cylinderx.com'
+    };
+
+    const emailTemplate = new SwapReceiptEmail(emailData);
+    const emailService = new EmailService();
+    
+    await emailService.sendEmail(
+      emailData.to,
+      emailTemplate.getSubject(),
+      emailTemplate.getHtml()
+    );
+
+    logger.info(`Swap receipt email sent to ${customer.email} for swap ID: ${swapRecord.id}`);
   }
 }
 

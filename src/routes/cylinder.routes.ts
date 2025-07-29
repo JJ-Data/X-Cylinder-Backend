@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { cylinderController } from '@controllers/cylinder.controller';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
+import { enforceOutletAccess, addOutletFilter, validateOutletParam } from '@middlewares/outlet.middleware';
 import { validate } from '@middlewares/validation.middleware';
 import { cylinderValidation } from '@utils/validation';
 import { CONSTANTS } from '@config/constants';
@@ -9,6 +10,9 @@ const router = Router();
 
 // All cylinder routes require authentication
 router.use(authenticate);
+
+// Apply outlet access control for staff and operators
+router.use(enforceOutletAccess);
 
 // Create a new cylinder (Admin and Staff)
 router.post(
@@ -26,8 +30,8 @@ router.post(
   cylinderController.bulkCreateCylinders
 );
 
-// Search cylinders (All authenticated users)
-router.get('/', validate(cylinderValidation.search, 'query'), cylinderController.searchCylinders);
+// Search cylinders (All authenticated users) - outlet filtering applied automatically
+router.get('/', addOutletFilter, validate(cylinderValidation.search, 'query'), cylinderController.searchCylinders);
 
 // Get available cylinders by outlet (Staff and Refill Operators)
 router.get(
@@ -37,6 +41,7 @@ router.get(
     CONSTANTS.USER_ROLES.STAFF,
     CONSTANTS.USER_ROLES.REFILL_OPERATOR
   ),
+  validateOutletParam('outletId'),
   cylinderController.getAvailableCylinders
 );
 

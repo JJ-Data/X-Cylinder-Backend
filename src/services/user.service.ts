@@ -1,11 +1,68 @@
 import { User } from '@models/User.model';
-import { UserUpdateAttributes, UserPublicData } from '@app-types/user.types';
+import { UserUpdateAttributes, UserPublicData, UserCreationAttributes } from '@app-types/user.types';
 import { PaginationQuery } from '@app-types/common.types';
 import { NotFoundError, ConflictError, BadRequestError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
 import { Op, WhereOptions } from 'sequelize';
 
 export class UserService {
+  public static async createUser(data: {
+    email: string;
+    name: string;
+    password: string;
+    role: string;
+    outletId?: number;
+  }): Promise<UserPublicData> {
+    // Split name into firstName and lastName
+    const nameParts = data.name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    if (!firstName) {
+      throw new BadRequestError('Name must contain at least a first name');
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictError(CONSTANTS.ERROR_MESSAGES.DUPLICATE_EMAIL);
+    }
+
+    // Validate role
+    if (!Object.values(CONSTANTS.USER_ROLES).includes(data.role as any)) {
+      throw new BadRequestError('Invalid user role');
+    }
+
+    // Validate outlet requirement for staff and refill operators
+    if ((data.role === CONSTANTS.USER_ROLES.STAFF || data.role === CONSTANTS.USER_ROLES.REFILL_OPERATOR) && !data.outletId) {
+      throw new BadRequestError('Outlet assignment is required for staff and refill operators');
+    }
+
+    // Create user data
+    const userData: UserCreationAttributes = {
+      email: data.email.toLowerCase().trim(),
+      password: data.password,
+      firstName,
+      lastName,
+      role: data.role as any,
+      outletId: data.outletId,
+      isActive: true,
+      emailVerified: true, // Admin-created users are automatically verified
+    };
+
+    // Set payment status for customers
+    if (data.role === CONSTANTS.USER_ROLES.CUSTOMER) {
+      userData.paymentStatus = 'pending';
+    }
+
+    const user = await User.create(userData);
+
+    return user.toPublicJSON();
+  }
+
   public static async getUserById(id: number): Promise<UserPublicData> {
     const user = await User.findByPk(id, {
       attributes: { exclude: ['password'] },
@@ -77,14 +134,71 @@ export class UserService {
     };
   }
 
-  public static async updateUser(id: number, data: UserUpdateAttributes): Promise<UserPublicData> {
+  public static async updateUser(id: number, data: {
+    name?: string;
+    role?: string;
+    outletId?: number;
+    phoneNumber?: string;
+    alternatePhone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+  }): Promise<UserPublicData> {
     const user = await User.findByPk(id);
 
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    await user.update(data);
+    // Prepare update data
+    const updateData: Partial<UserUpdateAttributes> = {};
+
+    // Handle name field - split into firstName and lastName
+    if (data.name) {
+      const nameParts = data.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      if (!firstName) {
+        throw new BadRequestError('Name must contain at least a first name');
+      }
+
+      updateData.firstName = firstName;
+      updateData.lastName = lastName;
+    }
+
+    // Handle role change
+    if (data.role) {
+      // Validate role
+      if (!Object.values(CONSTANTS.USER_ROLES).includes(data.role as any)) {
+        throw new BadRequestError('Invalid user role');
+      }
+      updateData.role = data.role as any;
+    }
+
+    // Handle outlet assignment
+    if (data.outletId !== undefined) {
+      updateData.outletId = data.outletId;
+    }
+
+    // Validate outlet requirement for staff and refill operators
+    const finalRole = data.role || user.role;
+    const finalOutletId = data.outletId !== undefined ? data.outletId : user.outletId;
+    
+    if ((finalRole === CONSTANTS.USER_ROLES.STAFF || finalRole === CONSTANTS.USER_ROLES.REFILL_OPERATOR) && !finalOutletId) {
+      throw new BadRequestError('Outlet assignment is required for staff and refill operators');
+    }
+
+    // Handle profile fields
+    if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber || undefined;
+    if (data.alternatePhone !== undefined) updateData.alternatePhone = data.alternatePhone || undefined;
+    if (data.address !== undefined) updateData.address = data.address || undefined;
+    if (data.city !== undefined) updateData.city = data.city || undefined;
+    if (data.state !== undefined) updateData.state = data.state || undefined;
+    if (data.postalCode !== undefined) updateData.postalCode = data.postalCode || undefined;
+
+    await user.update(updateData);
 
     return user.toPublicJSON();
   }

@@ -28,7 +28,7 @@ export const User = sequelize.define<UserInstance>(
     },
     password: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
     },
     firstName: {
       type: DataTypes.STRING(100),
@@ -87,6 +87,36 @@ export const User = sequelize.define<UserInstance>(
       allowNull: true,
       field: 'activated_at',
     },
+    phoneNumber: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      field: 'phone_number',
+    },
+    alternatePhone: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      field: 'alternate_phone',
+    },
+    address: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: 'address',
+    },
+    city: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: 'city',
+    },
+    state: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: 'state',
+    },
+    postalCode: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      field: 'postal_code',
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -108,7 +138,7 @@ export const User = sequelize.define<UserInstance>(
         }
       },
       beforeUpdate: async (user: UserInstance) => {
-        if (user.changed('password')) {
+        if (user.changed('password') && user.password) {
           user.password = await bcrypt.hash(user.password, CONSTANTS.SALT_ROUNDS);
         }
       },
@@ -139,6 +169,9 @@ export const User = sequelize.define<UserInstance>(
   this: UserInstance,
   password: string
 ): Promise<boolean> {
+  if (!this.password) {
+    return false; // Users without passwords cannot authenticate with password
+  }
   return bcrypt.compare(password, this.password);
 };
 

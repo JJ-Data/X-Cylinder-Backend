@@ -40,7 +40,7 @@ export class SMTPProvider extends EmailProvider {
   async sendEmail(options: EmailOptions): Promise<EmailResult> {
     try {
       const mailOptions = {
-        from: options.from || this.config.from,
+        from: `${this.config.fromName} <${this.config.from}>`,
         to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         subject: options.subject,
         html: options.html,

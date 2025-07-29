@@ -19,6 +19,7 @@ export interface EmailAttachment {
 
 export interface EmailProviderConfig {
   from: string;
+  fromName: string;
   replyTo?: string;
 }
 

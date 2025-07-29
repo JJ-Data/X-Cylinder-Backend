@@ -17,7 +17,11 @@ analyticsRoutes.use(authenticate);
  */
 analyticsRoutes.get(
   '/overview',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   analyticsController.getAnalyticsOverview
 );
 
@@ -28,7 +32,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/dashboard',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.dashboard, 'query'),
   analyticsController.getDashboardMetrics
 );
@@ -40,7 +48,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/outlets',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.dateRange, 'query'),
   analyticsController.getAllOutletsPerformance
 );
@@ -52,7 +64,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/outlets/:id/performance',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.dateRange, 'query'),
   analyticsController.getOutletPerformance
 );
@@ -64,7 +80,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/cylinders',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.dateRange, 'query'),
   analyticsController.getCylinderUtilization
 );
@@ -76,7 +96,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/revenue',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.revenue, 'query'),
   analyticsController.getRevenueAnalytics
 );
@@ -88,7 +112,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/customers',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.dateRange, 'query'),
   analyticsController.getCustomerAnalytics
 );
@@ -124,7 +152,11 @@ analyticsRoutes.get(
  */
 analyticsRoutes.get(
   '/export',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  authorize(
+    CONSTANTS.USER_ROLES.ADMIN,
+    CONSTANTS.USER_ROLES.STAFF,
+    CONSTANTS.USER_ROLES.REFILL_OPERATOR
+  ),
   validate(analyticsValidation.export, 'query'),
   analyticsController.exportAnalytics
 );

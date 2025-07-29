@@ -2,17 +2,17 @@ export const CONSTANTS = {
   // API versioning
   API_PREFIX: '/api',
   API_VERSION: 'v1',
-  
+
   // Pagination
   DEFAULT_PAGE: 1,
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
-  
+
   // Authentication
   SALT_ROUNDS: 10,
-  PASSWORD_MIN_LENGTH: 8,
+  PASSWORD_MIN_LENGTH: 6,
   PASSWORD_REGEX: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-  
+
   // User roles
   USER_ROLES: {
     ADMIN: 'admin',
@@ -20,7 +20,7 @@ export const CONSTANTS = {
     STAFF: 'staff',
     REFILL_OPERATOR: 'refill_operator',
   } as const,
-  
+
   // Cylinder status
   CYLINDER_STATUS: {
     AVAILABLE: 'available',
@@ -29,7 +29,7 @@ export const CONSTANTS = {
     DAMAGED: 'damaged',
     RETIRED: 'retired',
   } as const,
-  
+
   // HTTP Status codes
   HTTP_STATUS: {
     OK: 200,
@@ -45,7 +45,7 @@ export const CONSTANTS = {
     INTERNAL_SERVER_ERROR: 500,
     SERVICE_UNAVAILABLE: 503,
   } as const,
-  
+
   // Error messages
   ERROR_MESSAGES: {
     INVALID_CREDENTIALS: 'Invalid email or password',
@@ -61,7 +61,7 @@ export const CONSTANTS = {
     EMAIL_NOT_VERIFIED: 'Email verification required',
     EMAIL_ALREADY_VERIFIED: 'Email is already verified',
   } as const,
-  
+
   // Success messages
   SUCCESS_MESSAGES: {
     LOGIN_SUCCESS: 'Login successful',
@@ -75,7 +75,7 @@ export const CONSTANTS = {
     RESOURCE_UPDATED: 'Resource updated successfully',
     RESOURCE_DELETED: 'Resource deleted successfully',
   } as const,
-  
+
   // Regex patterns
   REGEX: {
     EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -84,8 +84,10 @@ export const CONSTANTS = {
   } as const,
 } as const;
 
-export type UserRole = typeof CONSTANTS.USER_ROLES[keyof typeof CONSTANTS.USER_ROLES];
-export type CylinderStatus = typeof CONSTANTS.CYLINDER_STATUS[keyof typeof CONSTANTS.CYLINDER_STATUS];
-export type HttpStatus = typeof CONSTANTS.HTTP_STATUS[keyof typeof CONSTANTS.HTTP_STATUS];
-export type ErrorMessage = typeof CONSTANTS.ERROR_MESSAGES[keyof typeof CONSTANTS.ERROR_MESSAGES];
-export type SuccessMessage = typeof CONSTANTS.SUCCESS_MESSAGES[keyof typeof CONSTANTS.SUCCESS_MESSAGES];
+export type UserRole = (typeof CONSTANTS.USER_ROLES)[keyof typeof CONSTANTS.USER_ROLES];
+export type CylinderStatus =
+  (typeof CONSTANTS.CYLINDER_STATUS)[keyof typeof CONSTANTS.CYLINDER_STATUS];
+export type HttpStatus = (typeof CONSTANTS.HTTP_STATUS)[keyof typeof CONSTANTS.HTTP_STATUS];
+export type ErrorMessage = (typeof CONSTANTS.ERROR_MESSAGES)[keyof typeof CONSTANTS.ERROR_MESSAGES];
+export type SuccessMessage =
+  (typeof CONSTANTS.SUCCESS_MESSAGES)[keyof typeof CONSTANTS.SUCCESS_MESSAGES];

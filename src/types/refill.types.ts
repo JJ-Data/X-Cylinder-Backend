@@ -29,6 +29,24 @@ export interface RefillRecordPublicData {
   batchNumber?: string;
   createdAt: Date;
   updatedAt: Date;
+  // Associated models
+  cylinder?: {
+    id: number;
+    cylinderCode: string;
+    type: string;
+    qrCode: string;
+  };
+  operator?: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+  outlet?: {
+    id: number;
+    name: string;
+    location: string;
+  };
 }
 
 export interface CreateRefillDto {

@@ -19,8 +19,12 @@ export class CustomerController {
   });
 
   activateCustomer = asyncHandler(async (req: Request, res: Response) => {
-    const { userId, paymentReference } = req.body;
-    const customer = await customerService.activateCustomer(userId, paymentReference);
+    const { userId, paymentAmount, paymentMethod, paymentReference } = req.body;
+    const customer = await customerService.activateCustomer(userId, {
+      paymentAmount,
+      paymentMethod,
+      paymentReference
+    });
 
     return ResponseUtil.success(res, customer, 'Customer activated successfully');
   });

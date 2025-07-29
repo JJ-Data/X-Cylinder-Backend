@@ -6,6 +6,9 @@ import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
 import { pricingService } from './pricing.service';
 import { OperationType } from '@models/BusinessSetting.model';
+import { EmailService } from './email.service';
+import { LeaseConfirmationEmail, LeaseConfirmationData } from './email/templates/LeaseConfirmationEmail';
+import { logger } from '@utils/logger';
 
 export class LeaseService {
   async createLease(
@@ -172,7 +175,18 @@ export class LeaseService {
         throw new AppError('Failed to get lease ID', CONSTANTS.HTTP_STATUS.INTERNAL_SERVER_ERROR);
       }
 
-      return await this.getLeaseById(leaseId);
+      // Get the full lease record with associated data for email
+      const fullLeaseRecord = await this.getLeaseById(leaseId);
+
+      // Send lease confirmation email
+      try {
+        await this.sendLeaseConfirmationEmail(fullLeaseRecord);
+      } catch (emailError) {
+        logger.error('Failed to send lease confirmation email:', emailError);
+        // Don't throw error - lease was successful, email is secondary
+      }
+
+      return fullLeaseRecord;
     } catch (error) {
       if (!transaction) {
         await t.rollback();
@@ -638,6 +652,53 @@ export class LeaseService {
       totalRevenue,
       totalDeposits,
     };
+  }
+
+  private async sendLeaseConfirmationEmail(leaseRecord: LeaseRecordPublicData): Promise<void> {
+    const customer = leaseRecord.customer;
+    const cylinder = leaseRecord.cylinder;
+    const outlet = leaseRecord.outlet;
+    const staff = leaseRecord.staff;
+
+    if (!customer?.email) {
+      logger.warn(`No email found for customer ID: ${leaseRecord.customerId}`);
+      return;
+    }
+
+    if (!leaseRecord.expectedReturnDate) {
+      logger.warn(`No expected return date for lease ID: ${leaseRecord.id}. Cannot send confirmation email.`);
+      return;
+    }
+
+    const emailData: LeaseConfirmationData = {
+      to: customer.email,
+      customerName: `${customer.firstName} ${customer.lastName}`.trim(),
+      leaseId: leaseRecord.id.toString(),
+      cylinderCode: cylinder?.cylinderCode || 'N/A',
+      cylinderType: cylinder?.type || 'Standard',
+      cylinderSize: '20kg', // Default size - could be enhanced with actual cylinder size data
+      leaseStartDate: new Date(leaseRecord.leaseDate),
+      expectedReturnDate: new Date(leaseRecord.expectedReturnDate),
+      leaseCost: parseFloat(leaseRecord.leaseAmount.toString()),
+      depositAmount: parseFloat(leaseRecord.depositAmount.toString()),
+      outletName: outlet?.name || 'Unknown Outlet',
+      outletLocation: outlet?.location || 'Location not specified',
+      staffName: staff ? `${staff.firstName} ${staff.lastName}`.trim() : 'Staff Member',
+      returnInstructions: `Please return the cylinder to any ${process.env.COMPANY_NAME || 'CylinderX'} outlet by the expected return date. Ensure the cylinder is in good condition to receive your full security deposit refund.`,
+      companyName: process.env.COMPANY_NAME || 'CylinderX',
+      supportEmail: process.env.SUPPORT_EMAIL || 'support@cylinderx.com'
+    };
+
+    const emailTemplate = new LeaseConfirmationEmail(emailData);
+    const emailService = new EmailService();
+    
+    await emailService.sendEmail(
+      emailData.to,
+      emailTemplate.getSubject(),
+      emailTemplate.getHtml()
+    );
+
+    logger.info(`Lease confirmation email sent to ${customer.email} for lease ID: ${leaseRecord.id}`);
   }
 }
 

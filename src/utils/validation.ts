@@ -9,7 +9,7 @@ export const commonSchemas = {
     .min(CONSTANTS.PASSWORD_MIN_LENGTH)
     .pattern(CONSTANTS.PASSWORD_REGEX)
     .message(
-      'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+      'Password must be at least 6 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character'
     ),
   name: Joi.string().trim().min(1).max(100),
   pagination: {
@@ -63,6 +63,30 @@ export const authValidation = {
 
 // User validation schemas
 export const userValidation = {
+  createUser: Joi.object({
+    email: commonSchemas.email.required(),
+    name: Joi.string().trim().min(2).max(200).required(),
+    password: commonSchemas.password.required(),
+    role: Joi.string()
+      .valid(...Object.values(CONSTANTS.USER_ROLES))
+      .required(),
+    outletId: commonSchemas.id.optional(),
+  }),
+
+  updateUser: Joi.object({
+    name: Joi.string().trim().min(2).max(200).optional(),
+    role: Joi.string()
+      .valid(...Object.values(CONSTANTS.USER_ROLES))
+      .optional(),
+    outletId: commonSchemas.id.optional().allow(null),
+    phoneNumber: Joi.string().trim().max(20).optional().allow(''),
+    alternatePhone: Joi.string().trim().max(20).optional().allow(''),
+    address: Joi.string().trim().optional().allow(''),
+    city: Joi.string().trim().max(100).optional().allow(''),
+    state: Joi.string().trim().max(100).optional().allow(''),
+    postalCode: Joi.string().trim().max(20).optional().allow(''),
+  }).min(1),
+
   updateProfile: Joi.object({
     firstName: commonSchemas.name,
     lastName: commonSchemas.name,
@@ -131,15 +155,18 @@ export const cylinderValidation = {
   }),
 
   bulkCreate: Joi.object({
-    cylinders: Joi.array().items(
-      Joi.object({
-        cylinderCode: Joi.string().trim().min(1).max(50).required(),
-        type: Joi.string().valid('5kg', '10kg', '15kg', '50kg').required(),
-        currentOutletId: commonSchemas.id.required(),
-        manufactureDate: Joi.date().optional(),
-        maxGasVolume: Joi.number().positive().required(),
-      })
-    ).min(1).required(),
+    cylinders: Joi.array()
+      .items(
+        Joi.object({
+          cylinderCode: Joi.string().trim().min(1).max(50).required(),
+          type: Joi.string().valid('5kg', '10kg', '15kg', '50kg').required(),
+          currentOutletId: commonSchemas.id.required(),
+          manufactureDate: Joi.date().optional(),
+          maxGasVolume: Joi.number().positive().required(),
+        })
+      )
+      .min(1)
+      .required(),
   }),
 
   retire: Joi.object({
@@ -207,14 +234,17 @@ export const refillValidation = {
 
   bulkRefill: Joi.object({
     batchNumber: Joi.string().trim().max(100).required(),
-    refills: Joi.array().items(
-      Joi.object({
-        cylinderCode: Joi.string().trim().min(1).max(50).required(),
-        preRefillVolume: Joi.number().min(0).required(),
-        postRefillVolume: Joi.number().min(0).required(),
-        refillCost: Joi.number().min(0).optional(),
-      })
-    ).min(1).required(),
+    refills: Joi.array()
+      .items(
+        Joi.object({
+          cylinderCode: Joi.string().trim().min(1).max(50).required(),
+          preRefillVolume: Joi.number().min(0).required(),
+          postRefillVolume: Joi.number().min(0).required(),
+          refillCost: Joi.number().min(0).optional(),
+        })
+      )
+      .min(1)
+      .required(),
     notes: Joi.string().trim().optional(),
   }),
 
@@ -233,15 +263,26 @@ export const refillValidation = {
 export const customerValidation = {
   register: Joi.object({
     email: commonSchemas.email.required(),
-    password: commonSchemas.password.required(),
     firstName: commonSchemas.name.required(),
     lastName: commonSchemas.name.required(),
+    phoneNumber: Joi.string().trim().min(10).max(20).optional(),
+    alternatePhone: Joi.string().trim().min(10).max(20).optional(),
+    address: Joi.string().trim().min(5).optional(),
+    city: Joi.string().trim().min(2).optional(),
+    state: Joi.string().trim().min(2).optional(),
+    postalCode: Joi.string().trim().max(20).optional(),
     outletId: commonSchemas.id.optional(),
   }),
 
   activate: Joi.object({
     userId: commonSchemas.id.required(),
-    paymentReference: Joi.string().trim().required(),
+    paymentAmount: Joi.number().min(0).required(),
+    paymentMethod: Joi.string().valid('cash', 'bank_transfer', 'card').required(),
+    paymentReference: Joi.string().trim().when('paymentMethod', {
+      is: 'cash',
+      then: Joi.optional().allow(''),
+      otherwise: Joi.required()
+    }),
   }),
 
   search: Joi.object({
@@ -291,7 +332,9 @@ export const analyticsValidation = {
   }),
 
   export: Joi.object({
-    type: Joi.string().valid('dashboard', 'revenue', 'customers', 'cylinders', 'operators').required(),
+    type: Joi.string()
+      .valid('dashboard', 'revenue', 'customers', 'cylinders', 'operators')
+      .required(),
     format: Joi.string().valid('csv', 'excel').optional(),
     dateFrom: Joi.date().optional(),
     dateTo: Joi.date().optional(),

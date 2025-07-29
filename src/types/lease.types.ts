@@ -14,9 +14,13 @@ export interface LeaseRecordAttributes extends BaseModelAttributes {
   leaseAmount: number;
   refundAmount?: number;
   notes?: string;
+  lateFees?: number;
+  lastNotificationSent?: Date;
+  notificationCount?: number;
+  lastOverdueCheck?: Date;
 }
 
-export interface LeaseRecordCreationAttributes extends Omit<LeaseRecordAttributes, 'id' | 'createdAt' | 'updatedAt' | 'actualReturnDate' | 'returnStaffId' | 'refundAmount'> {}
+export interface LeaseRecordCreationAttributes extends Omit<LeaseRecordAttributes, 'id' | 'createdAt' | 'updatedAt' | 'actualReturnDate' | 'returnStaffId' | 'refundAmount' | 'lateFees' | 'lastNotificationSent' | 'lastOverdueCheck'> {}
 
 export interface LeaseRecordUpdateAttributes extends Partial<Pick<LeaseRecordAttributes, 'expectedReturnDate' | 'actualReturnDate' | 'returnStaffId' | 'leaseStatus' | 'refundAmount' | 'notes'>> {}
 
@@ -35,8 +39,42 @@ export interface LeaseRecordPublicData {
   leaseAmount: number;
   refundAmount?: number;
   notes?: string;
+  lateFees?: number;
+  lastNotificationSent?: Date;
+  notificationCount?: number;
+  lastOverdueCheck?: Date;
   createdAt: Date;
   updatedAt: Date;
+  // Associated models
+  customer?: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+  cylinder?: {
+    id: number;
+    cylinderCode: string;
+    type: string;
+    qrCode: string;
+  };
+  staff?: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+  returnStaff?: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+  outlet?: {
+    id: number;
+    name: string;
+    location: string;
+  };
 }
 
 export interface CreateLeaseDto {

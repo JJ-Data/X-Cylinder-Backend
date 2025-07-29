@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { customerController } from '@controllers/customer.controller';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
+import { enforceOutletAccess, addOutletFilter } from '@middlewares/outlet.middleware';
 import { validate } from '@middlewares/validation.middleware';
 import { customerValidation } from '@utils/validation';
 import { CONSTANTS } from '@config/constants';
@@ -25,10 +26,14 @@ router.post(
 // All routes below require authentication
 router.use(authenticate);
 
-// Search customers (Admin and Staff)
+// Apply outlet access control for staff
+router.use(enforceOutletAccess);
+
+// Search customers (Admin and Staff) - outlet filtering applied automatically
 router.get(
   '/',
   authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  addOutletFilter,
   validate(customerValidation.search, 'query'),
   customerController.searchCustomers
 );

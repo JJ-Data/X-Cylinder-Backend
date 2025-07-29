@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { leaseController } from '@controllers/lease.controller';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
+import { enforceOutletAccess, addOutletFilter } from '@middlewares/outlet.middleware';
 import { validate } from '@middlewares/validation.middleware';
 import { leaseValidation } from '@utils/validation';
 import { CONSTANTS } from '@config/constants';
@@ -10,6 +11,9 @@ const router = Router();
 // All lease routes require authentication
 router.use(authenticate);
 
+// Apply outlet access control for staff
+router.use(enforceOutletAccess);
+
 // Get pricing quote for lease (Admin and Staff)
 router.get(
   '/quote',
@@ -17,10 +21,11 @@ router.get(
   leaseController.getPricingQuote
 );
 
-// Get all leases with filters (Admin and Staff)
+// Get all leases with filters (Admin and Staff) - outlet filtering applied automatically
 router.get(
   '/',
   authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
+  addOutletFilter,
   validate(leaseValidation.query, 'query'),
   leaseController.getLeases
 );

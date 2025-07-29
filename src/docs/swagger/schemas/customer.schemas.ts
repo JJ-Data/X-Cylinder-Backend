@@ -23,19 +23,26 @@ const CustomerSchema = sb.object('Customer', {
 const RegisterCustomerSchema = sb
   .object('RegisterCustomer', {
     email: sb.string('Email address').format('email').example('customer@example.com'),
-    password: sb.string('Password').min(8).example('SecurePass123!'),
     firstName: sb.string('First name').example('John'),
     lastName: sb.string('Last name').example('Doe'),
+    phoneNumber: sb.string('Phone number').optional().example('+234 xxx xxx xxxx'),
+    alternatePhone: sb.string('Alternate phone number').optional(),
+    address: sb.string('Street address').optional().example('123 Main Street'),
+    city: sb.string('City').optional().example('Lagos'),
+    state: sb.string('State').optional().example('Lagos'),
+    postalCode: sb.string('Postal code').optional().example('100001'),
     outletId: sb.integer('Preferred outlet ID').optional(),
   })
-  .required(['email', 'password', 'firstName', 'lastName']);
+  .required(['email', 'firstName', 'lastName']);
 
 const ActivateCustomerSchema = sb
   .object('ActivateCustomer', {
     userId: sb.integer('User ID'),
-    paymentReference: sb.string('Payment reference from gateway'),
+    paymentAmount: sb.number('Payment amount').min(0).example(5000),
+    paymentMethod: sb.enum(['cash', 'bank_transfer', 'card'], 'Payment method').example('cash'),
+    paymentReference: sb.string('Payment reference from gateway').optional().example('TXN123456'),
   })
-  .required(['userId', 'paymentReference']);
+  .required(['userId', 'paymentAmount', 'paymentMethod']);
 
 const DeactivateCustomerSchema = sb
   .object('DeactivateCustomer', {

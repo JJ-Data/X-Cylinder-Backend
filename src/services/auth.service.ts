@@ -2,6 +2,7 @@ import { User } from '@models/User.model';
 import { RefreshToken } from '@models/RefreshToken.model';
 import { PasswordResetToken } from '@models/PasswordResetToken.model';
 import { EmailVerificationToken } from '@models/EmailVerificationToken.model';
+import { LoginSession } from '@models/LoginSession.model';
 import crypto from 'crypto';
 import { LoginRequest, RegisterRequest, AuthTokens, JwtPayload } from '@app-types/auth.types';
 import { UserCreationAttributes } from '@app-types/user.types';
@@ -19,6 +20,7 @@ import { emailService } from '@services/email/EmailService';
 import { PasswordResetEmail } from '@services/email/templates/PasswordResetEmail';
 import { PasswordChangeConfirmationEmail } from '@services/email/templates/PasswordChangeConfirmationEmail';
 import { EmailVerificationEmail } from '@services/email/templates/EmailVerificationEmail';
+import { LoginNotificationEmail } from '@services/email/templates/LoginNotificationEmail';
 import { config } from '@config/environment';
 
 export class AuthService {
@@ -72,28 +74,53 @@ export class AuthService {
     }
   }
 
-  public static async login(data: LoginRequest): Promise<{ tokens: AuthTokens; user: any }> {
-    const user = await User.findOne({
-      where: { email: data.email },
-    });
-
-    if (!user || !(await user.comparePassword(data.password))) {
-      throw new UnauthorizedError(CONSTANTS.ERROR_MESSAGES.INVALID_CREDENTIALS);
+  public static async login(
+    data: LoginRequest,
+    loginMetadata?: {
+      ipAddress?: string;
+      userAgent?: string;
+      deviceInfo?: string;
+      browserInfo?: string;
+      location?: string;
     }
+  ): Promise<{ tokens: AuthTokens; user: any }> {
+    const transaction = await sequelize.transaction();
 
-    if (!user.isActive) {
-      throw new UnauthorizedError('Account is disabled');
+    try {
+      const user = await User.findOne({
+        where: { email: data.email },
+        transaction,
+      });
+
+      if (!user || !(await user.comparePassword(data.password))) {
+        throw new UnauthorizedError(CONSTANTS.ERROR_MESSAGES.INVALID_CREDENTIALS);
+      }
+
+      if (!user.isActive) {
+        throw new UnauthorizedError('Account is disabled');
+      }
+
+      // Update last login
+      await user.update({ lastLogin: new Date() }, { transaction });
+
+      // Generate tokens
+      const tokens = await this.generateAuthTokens(user, transaction);
+
+      // Track login session and send notifications
+      if (loginMetadata) {
+        await this.trackLoginSession(user, tokens.refreshToken, loginMetadata, transaction);
+      }
+
+      await transaction.commit();
+
+      return {
+        tokens,
+        user: user.toPublicJSON()
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
-
-    // Update last login
-    await user.update({ lastLogin: new Date() });
-
-    const tokens = await this.generateAuthTokens(user);
-
-    return {
-      tokens,
-      user: user.toPublicJSON()
-    };
   }
 
   public static async refreshTokens(refreshToken: string): Promise<{ tokens: AuthTokens; user: any }> {
@@ -148,11 +175,61 @@ export class AuthService {
   }
 
   public static async logout(refreshToken: string): Promise<void> {
-    await RefreshToken.update({ revoked: true }, { where: { token: refreshToken } });
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Revoke refresh token
+      await RefreshToken.update(
+        { revoked: true },
+        { where: { token: refreshToken }, transaction }
+      );
+
+      // Update login session as inactive
+      await LoginSession.update(
+        { 
+          isActive: false,
+          logoutTime: new Date()
+        },
+        { 
+          where: { sessionId: refreshToken },
+          transaction
+        }
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   public static async logoutAll(userId: number): Promise<void> {
-    await RefreshToken.update({ revoked: true }, { where: { userId, revoked: false } });
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Revoke all refresh tokens
+      await RefreshToken.update(
+        { revoked: true },
+        { where: { userId, revoked: false }, transaction }
+      );
+
+      // Update all active login sessions as inactive
+      await LoginSession.update(
+        { 
+          isActive: false,
+          logoutTime: new Date()
+        },
+        { 
+          where: { userId, isActive: true },
+          transaction
+        }
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   private static async generateAuthTokens(
@@ -566,6 +643,174 @@ export class AuthService {
     } catch (error) {
       await transaction.rollback();
       throw error;
+    }
+  }
+
+  private static async trackLoginSession(
+    user: any,
+    sessionId: string,
+    metadata: {
+      ipAddress?: string;
+      userAgent?: string;
+      deviceInfo?: string;
+      browserInfo?: string;
+      location?: string;
+    },
+    transaction: Transaction
+  ): Promise<void> {
+    try {
+      // Analyze login for suspicious activity
+      const loginAnalysis = await this.analyzeLogin(user.id, metadata, transaction);
+
+      // Create login session record
+      const loginSession = await LoginSession.create(
+        {
+          userId: user.id,
+          sessionId,
+          ipAddress: metadata.ipAddress || 'unknown',
+          userAgent: metadata.userAgent || 'unknown',
+          deviceInfo: metadata.deviceInfo,
+          browserInfo: metadata.browserInfo,
+          location: metadata.location,
+          loginType: loginAnalysis.loginType,
+          isSuspicious: loginAnalysis.isSuspicious,
+          isNewDevice: loginAnalysis.isNewDevice,
+          emailSent: false,
+          loginTime: new Date(),
+          isActive: true,
+        },
+        { transaction }
+      );
+
+      // Send email notification if needed
+      if (loginAnalysis.shouldSendEmail) {
+        await this.sendLoginNotification(user, loginSession, loginAnalysis, transaction);
+      }
+    } catch (error) {
+      // Log error but don't fail login
+      console.error('Login session tracking failed:', error);
+    }
+  }
+
+  private static async analyzeLogin(
+    userId: number,
+    metadata: {
+      ipAddress?: string;
+      userAgent?: string;
+      deviceInfo?: string;
+      browserInfo?: string;
+      location?: string;
+    },
+    transaction: Transaction
+  ): Promise<{
+    loginType: 'normal' | 'suspicious' | 'new_device';
+    isSuspicious: boolean;
+    isNewDevice: boolean;
+    shouldSendEmail: boolean;
+  }> {
+    const { ipAddress, userAgent, deviceInfo, location } = metadata;
+
+    // Get recent login sessions for comparison
+    const recentSessions = await LoginSession.findAll({
+      where: {
+        userId,
+        loginTime: {
+          [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+        },
+      },
+      order: [['loginTime', 'DESC']],
+      limit: 10,
+      transaction,
+    });
+
+    let isNewDevice = false;
+    let isSuspicious = false;
+    let loginType: 'normal' | 'suspicious' | 'new_device' = 'normal';
+
+    // Check for new device (based on user agent or device info)
+    if (recentSessions.length > 0) {
+      const deviceSignatures = recentSessions.map(session => 
+        `${session.userAgent}|${session.deviceInfo || ''}`
+      );
+      const currentSignature = `${userAgent || ''}|${deviceInfo || ''}`;
+      
+      isNewDevice = !deviceSignatures.includes(currentSignature);
+    } else {
+      isNewDevice = true; // First login ever
+    }
+
+    // Check for suspicious activity
+    if (ipAddress && recentSessions.length > 0) {
+      const recentIPs = recentSessions.map(session => session.ipAddress);
+      const isNewIP = !recentIPs.includes(ipAddress);
+      
+      // Suspicious if new IP and new device, or multiple new characteristics
+      if (isNewIP && isNewDevice) {
+        isSuspicious = true;
+      }
+
+      // Check for unusual location patterns (if location data available)
+      if (location && recentSessions.length > 0) {
+        const recentLocations = recentSessions
+          .map(session => session.location)
+          .filter(loc => loc);
+        
+        if (recentLocations.length > 0 && !recentLocations.includes(location)) {
+          // Different location + new device = more suspicious
+          if (isNewDevice) {
+            isSuspicious = true;
+          }
+        }
+      }
+    }
+
+    // Determine login type
+    if (isSuspicious) {
+      loginType = 'suspicious';
+    } else if (isNewDevice) {
+      loginType = 'new_device';
+    }
+
+    // Send email for suspicious logins, new devices, or first-time logins
+    const shouldSendEmail = isSuspicious || isNewDevice || recentSessions.length === 0;
+
+    return {
+      loginType,
+      isSuspicious,
+      isNewDevice,
+      shouldSendEmail,
+    };
+  }
+
+  private static async sendLoginNotification(
+    user: any,
+    loginSession: any,
+    analysis: {
+      loginType: 'normal' | 'suspicious' | 'new_device';
+      isSuspicious: boolean;
+      isNewDevice: boolean;
+    },
+    transaction: Transaction
+  ): Promise<void> {
+    try {
+      const loginNotificationEmail = new LoginNotificationEmail({
+        firstName: user.firstName,
+        loginType: analysis.loginType,
+        loginTime: loginSession.loginTime,
+        ipAddress: loginSession.ipAddress,
+        location: loginSession.location || 'Unknown Location',
+        deviceInfo: loginSession.deviceInfo || 'Unknown Device',
+        browserInfo: loginSession.browserInfo || 'Unknown Browser',
+        companyName: config.companyName || 'CylinderX',
+        supportEmail: config.supportEmail || 'support@cylinderx.com',
+      });
+
+      await emailService.sendTemplate(user.email, loginNotificationEmail);
+
+      // Mark email as sent
+      await loginSession.update({ emailSent: true }, { transaction });
+    } catch (error) {
+      console.error('Failed to send login notification email:', error);
     }
   }
 }

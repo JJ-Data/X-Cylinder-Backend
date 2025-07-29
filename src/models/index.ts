@@ -9,6 +9,7 @@ import LeaseRecord from './LeaseRecord.model';
 import RefillRecord from './RefillRecord.model';
 import TransferRecord from './TransferRecord.model';
 import SwapRecord from './SwapRecord.model';
+import EmailLog from './EmailLog.model';
 import setupAssociations from './associations';
 
 // Setup model associations
@@ -26,5 +27,6 @@ export {
   RefillRecord,
   TransferRecord,
   SwapRecord,
+  EmailLog,
 };
 

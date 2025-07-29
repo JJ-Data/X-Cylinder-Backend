@@ -6,6 +6,9 @@ import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
 import { pricingService } from './pricing.service';
 import { OperationType } from '@models/BusinessSetting.model';
+import { EmailService } from './email.service';
+import { RefillReceiptEmail, RefillReceiptData } from './email/templates/RefillReceiptEmail';
+import { logger } from '@utils/logger';
 
 export class RefillService {
   async createRefill(
@@ -111,7 +114,18 @@ export class RefillService {
         throw new AppError('Failed to get refill ID', CONSTANTS.HTTP_STATUS.INTERNAL_SERVER_ERROR);
       }
 
-      return await this.getRefillById(refillId);
+      // Get the full refill record with associated data for email
+      const fullRefillRecord = await this.getRefillById(refillId);
+
+      // Send refill receipt email
+      try {
+        await this.sendRefillReceiptEmail(fullRefillRecord);
+      } catch (emailError) {
+        logger.error('Failed to send refill receipt email:', emailError);
+        // Don't throw error - refill was successful, email is secondary
+      }
+
+      return fullRefillRecord;
     } catch (error) {
       if (!transaction) {
         await t.rollback();
@@ -509,6 +523,48 @@ export class RefillService {
     }
 
     return statistics;
+  }
+
+  private async sendRefillReceiptEmail(refillRecord: RefillRecordPublicData): Promise<void> {
+    const operator = refillRecord.operator;
+    const cylinder = refillRecord.cylinder;
+    const outlet = refillRecord.outlet;
+
+    if (!operator?.email) {
+      logger.warn(`No email found for operator ID: ${refillRecord.operatorId}`);
+      return;
+    }
+
+    const emailData: RefillReceiptData = {
+      to: operator.email,
+      customerName: `${operator.firstName} ${operator.lastName}`.trim(), // Using operator as recipient for now
+      refillId: refillRecord.id.toString(),
+      cylinderCode: cylinder?.cylinderCode || 'N/A',
+      cylinderType: cylinder?.type || 'Standard',
+      preRefillVolume: refillRecord.preRefillVolume,
+      postRefillVolume: refillRecord.postRefillVolume,
+      refillAmount: refillRecord.volumeAdded,
+      refillCost: refillRecord.refillCost || 0,
+      refillDate: new Date(refillRecord.refillDate),
+      outletName: outlet?.name || 'Unknown Outlet',
+      outletLocation: outlet?.location || 'Location not specified',
+      operatorName: operator ? `${operator.firstName} ${operator.lastName}`.trim() : 'Staff Member',
+      batchNumber: refillRecord.batchNumber || undefined,
+      notes: refillRecord.notes || undefined,
+      companyName: process.env.COMPANY_NAME || 'CylinderX',
+      supportEmail: process.env.SUPPORT_EMAIL || 'support@cylinderx.com'
+    };
+
+    const emailTemplate = new RefillReceiptEmail(emailData);
+    const emailService = new EmailService();
+    
+    await emailService.sendEmail(
+      emailData.to,
+      emailTemplate.getSubject(),
+      emailTemplate.getHtml()
+    );
+
+    logger.info(`Refill receipt email sent to ${operator.email} for refill ID: ${refillRecord.id}`);
   }
 }
 

@@ -3,11 +3,15 @@ import { createApp } from './app';
 import { config } from '@config/environment';
 import { connectDatabase, closeDatabaseConnection } from '@config/database';
 import { logger } from '@utils/logger';
+import { ScheduledTaskService } from '@services/scheduledTask.service';
 
 const startServer = async (): Promise<void> => {
   try {
     // Connect to database
     await connectDatabase();
+
+    // Initialize scheduled tasks
+    ScheduledTaskService.initialize();
 
     // Create Express app
     const app = createApp();
@@ -25,6 +29,10 @@ const startServer = async (): Promise<void> => {
         logger.info('HTTP server closed');
 
         try {
+          // Stop all scheduled tasks
+          ScheduledTaskService.stopAllTasks();
+          logger.info('Scheduled tasks stopped');
+
           await closeDatabaseConnection();
           logger.info('Database connection closed');
           process.exit(0);

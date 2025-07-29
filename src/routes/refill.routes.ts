@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { refillController } from '@controllers/refill.controller';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
+import { enforceOutletAccess, addOutletFilter } from '@middlewares/outlet.middleware';
 import { validate } from '@middlewares/validation.middleware';
 import { refillValidation } from '@utils/validation';
 import { CONSTANTS } from '@config/constants';
@@ -9,6 +10,9 @@ const router = Router();
 
 // All refill routes require authentication
 router.use(authenticate);
+
+// Apply outlet access control for operators
+router.use(enforceOutletAccess);
 
 // Create a new refill (Refill Operators only)
 router.post(
@@ -26,7 +30,7 @@ router.post(
   refillController.bulkRefill
 );
 
-// Get refill statistics (Admin and Staff)
+// Get refill statistics (Admin and Staff) - outlet filtering applied automatically
 router.get(
   '/statistics',
   authorize(
@@ -34,6 +38,7 @@ router.get(
     CONSTANTS.USER_ROLES.STAFF,
     CONSTANTS.USER_ROLES.REFILL_OPERATOR
   ),
+  addOutletFilter,
   validate(refillValidation.query, 'query'),
   refillController.getRefillStatistics
 );

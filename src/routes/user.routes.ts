@@ -36,12 +36,29 @@ router.patch(
 );
 
 // Protected routes - Admin
+router.post(
+  '/',
+  authenticate,
+  authorize(CONSTANTS.USER_ROLES.ADMIN),
+  validateBody(userValidation.createUser),
+  UserController.createUser
+);
+
 router.get(
   '/',
   authenticate,
   authorize(CONSTANTS.USER_ROLES.ADMIN),
   validateQuery(userValidation.getUsers),
   UserController.getUsers
+);
+
+router.put(
+  '/:id',
+  authenticate,
+  authorize(CONSTANTS.USER_ROLES.ADMIN),
+  validateParams(userValidation.getUserById),
+  validateBody(userValidation.updateUser),
+  UserController.updateUser
 );
 
 router.get(

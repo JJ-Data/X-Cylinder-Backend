@@ -1,4 +1,5 @@
 import { User, LeaseRecord, Outlet } from '@models/index';
+import { OutletAttributes } from '@app-types/outlet.types';
 import { UserCreationAttributes, UserPublicData } from '@app-types/user.types';
 import { AppError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
@@ -6,11 +7,21 @@ import { config } from '@config/environment';
 import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
 import * as crypto from 'crypto';
-import { emailService } from './email.service';
+import { emailService } from '@services/email/EmailService';
+import { CustomerRegistrationEmail } from '@services/email/templates/CustomerRegistrationEmail';
+import { CustomerWelcomeEmail } from '@services/email/templates/CustomerWelcomeEmail';
 import { logger } from '@utils/logger';
 
-export interface CustomerRegistrationData
-  extends Omit<UserCreationAttributes, 'role' | 'paymentStatus'> {
+export interface CustomerRegistrationData {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  alternatePhone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
   outletId?: number;
 }
 
@@ -19,6 +30,12 @@ export interface PaymentLinkData {
   amount: number;
   paymentLink: string;
   expiresAt: Date;
+}
+
+export interface PaymentData {
+  paymentAmount: number;
+  paymentMethod: 'cash' | 'bank_transfer' | 'card';
+  paymentReference?: string;
 }
 
 export class CustomerService {
@@ -77,12 +94,19 @@ export class CustomerService {
 
       // Send registration email with payment link
       try {
-        const emailContent = `Hello ${customer.getDataValue('firstName')},\n\nPlease complete your CylinderX registration by paying the registration fee.\n\nPayment Link: ${paymentLink.paymentLink}\nAmount: $${paymentLink.amount}\nExpires: ${paymentLink.expiresAt}\n\nThank you!`;
-        await emailService.sendEmail(
-          customer.getDataValue('email') as string,
-          'Complete Your CylinderX Registration',
-          emailContent
-        );
+        const firstName = customer.getDataValue('firstName') as string;
+        const customerEmail = customer.getDataValue('email') as string;
+        
+        const registrationEmailTemplate = new CustomerRegistrationEmail({
+          firstName,
+          email: customerEmail,
+          paymentLink: paymentLink.paymentLink,
+          amount: paymentLink.amount,
+          expiresAt: paymentLink.expiresAt,
+          companyName: config.companyName
+        });
+
+        await emailService.sendTemplate(customerEmail, registrationEmailTemplate);
       } catch (emailError) {
         logger.error('Failed to send registration email:', emailError);
         // Don't throw - registration should succeed even if email fails
@@ -106,7 +130,7 @@ export class CustomerService {
 
   async activateCustomer(
     userId: number,
-    paymentReference: string,
+    paymentData: PaymentData,
     transaction?: Transaction
   ): Promise<UserPublicData> {
     const t = transaction || (await sequelize.transaction());
@@ -121,7 +145,13 @@ export class CustomerService {
         throw new AppError('Customer already activated', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
       }
 
-      // TODO: Verify payment with payment gateway using paymentReference
+      // Generate payment reference for cash payments if not provided
+      let finalPaymentReference = paymentData.paymentReference;
+      if (paymentData.paymentMethod === 'cash' && !finalPaymentReference) {
+        finalPaymentReference = this.generatePaymentReference(userId).replace('PAY-', 'CASH-');
+      }
+
+      // TODO: Verify payment with payment gateway using paymentReference for non-cash payments
       // For now, we'll simulate successful payment verification
 
       // Activate customer account
@@ -136,12 +166,18 @@ export class CustomerService {
 
       // Send welcome email
       try {
-        const welcomeContent = `Hello ${customer.getDataValue('firstName')},\n\nWelcome to CylinderX! Your account has been successfully activated.\n\nYou can now start using our cylinder lease services.\n\nThank you for choosing CylinderX!`;
-        await emailService.sendEmail(
-          customer.getDataValue('email') as string,
-          'Welcome to CylinderX!',
-          welcomeContent
-        );
+        const firstName = customer.getDataValue('firstName') as string;
+        const customerEmail = customer.getDataValue('email') as string;
+        
+        const welcomeEmailTemplate = new CustomerWelcomeEmail({
+          firstName,
+          email: customerEmail,
+          activationDate: new Date(),
+          supportEmail: config.supportEmail,
+          companyName: config.companyName
+        });
+
+        await emailService.sendTemplate(customerEmail, welcomeEmailTemplate);
       } catch (emailError) {
         logger.error('Failed to send welcome email:', emailError);
         // Don't throw - activation should succeed even if email fails
@@ -162,7 +198,7 @@ export class CustomerService {
 
   async getCustomerById(id: number): Promise<
     UserPublicData & {
-      outlet?: any;
+      outlet?: Pick<OutletAttributes, 'id' | 'name' | 'location'>;
       activeLeases: number;
       totalLeases: number;
     }
@@ -224,12 +260,12 @@ export class CustomerService {
     const limit = Math.min(filters.limit || CONSTANTS.DEFAULT_PAGE_SIZE, CONSTANTS.MAX_PAGE_SIZE);
     const offset = (page - 1) * limit;
 
-    const where: any = {
+    const where: Record<string, any> = {
       role: CONSTANTS.USER_ROLES.CUSTOMER,
     };
 
     if (filters.searchTerm) {
-      where[Op.or] = [
+      where[Op.or as any] = [
         { email: { [Op.like]: `%${filters.searchTerm}%` } },
         { firstName: { [Op.like]: `%${filters.searchTerm}%` } },
         { lastName: { [Op.like]: `%${filters.searchTerm}%` } },
@@ -270,11 +306,11 @@ export class CustomerService {
       attributes: ['customerId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
       group: ['customerId'],
       raw: true,
-    })) as any[];
+    })) as unknown as Array<{ customerId: number; count: string }>;
 
     const leaseCountMap = activeLeaseCounts.reduce(
       (acc, item) => {
-        acc[item.customerId] = parseInt(item.count);
+        acc[item.customerId] = parseInt(item.count.toString());
         return acc;
       },
       {} as Record<number, number>
@@ -352,7 +388,7 @@ export class CustomerService {
       isActive: false,
       paymentStatus: 'inactive',
       // notes: reason, // TODO: Add notes field to User model if needed
-    } as any);
+    } as Partial<UserCreationAttributes>);
   }
 
   async resendPaymentLink(userId: number): Promise<PaymentLinkData> {
@@ -376,12 +412,14 @@ export class CustomerService {
 
     // Send email with new payment link
     try {
-      const reminderContent = `Hello ${customer.getDataValue('firstName')},\n\nThis is a reminder to complete your CylinderX registration.\n\nPayment Link: ${paymentLink.paymentLink}\nAmount: $${paymentLink.amount}\nExpires: ${paymentLink.expiresAt}\n\nPlease complete your payment to activate your account.\n\nThank you!`;
-      await emailService.sendEmail(
-        customer.getDataValue('email') as string,
-        'Complete Your CylinderX Registration - Payment Link',
-        reminderContent
-      );
+      const firstName = customer.getDataValue('firstName') as string;
+      const reminderContent = `Hello ${firstName},\n\nThis is a reminder to complete your CylinderX registration.\n\nPayment Link: ${paymentLink.paymentLink}\nAmount: $${paymentLink.amount}\nExpires: ${paymentLink.expiresAt}\n\nPlease complete your payment to activate your account.\n\nThank you!`;
+      await emailService.sendEmail({
+        to: customer.getDataValue('email') as string,
+        subject: 'Complete Your CylinderX Registration - Payment Link',
+        text: reminderContent,
+        html: reminderContent.replace(/\n/g, '<br>')
+      });
     } catch (emailError) {
       logger.error('Failed to send payment reminder email:', emailError);
       // Don't throw - function should succeed even if email fails

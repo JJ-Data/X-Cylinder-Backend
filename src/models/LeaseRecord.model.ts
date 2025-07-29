@@ -109,6 +109,34 @@ export const LeaseRecord = sequelize.define<LeaseRecordInstance>(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    lateFees: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0,
+      field: 'late_fees',
+      validate: {
+        min: 0,
+      },
+    },
+    lastNotificationSent: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'last_notification_sent',
+    },
+    notificationCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: 'notification_count',
+      validate: {
+        min: 0,
+      },
+    },
+    lastOverdueCheck: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'last_overdue_check',
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

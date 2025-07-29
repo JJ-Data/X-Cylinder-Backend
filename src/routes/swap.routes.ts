@@ -1,12 +1,17 @@
 import { Router } from 'express';
 import { swapController } from '@controllers/swap.controller';
 import { authenticate, authorize } from '@middlewares/auth.middleware';
+import { enforceOutletAccess, addOutletFilter, validateOutletParam } from '@middlewares/outlet.middleware';
 import { validateBody, validateQuery } from '@middlewares/validation.middleware';
 import { CreateSwapDto } from '@app-types/swap.types';
 import { CONSTANTS } from '@config/constants';
 import Joi from 'joi';
 
 const router: Router = Router();
+
+// Apply authentication and outlet access control
+router.use(authenticate);
+router.use(enforceOutletAccess);
 
 // Validation schemas
 const createSwapSchema = Joi.object<CreateSwapDto>({
@@ -37,80 +42,77 @@ const swapFiltersSchema = Joi.object({
   search: Joi.string().max(100).optional(),
 });
 
-// All routes require authentication and admin/staff role
-const adminStaffAuth = [
-  authenticate,
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
-];
+// Authorization helper for admin/staff/operator access
+const authorizeSwapAccess = authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF, CONSTANTS.USER_ROLES.REFILL_OPERATOR);
 
 /**
  * @route   GET /api/v1/swaps
  * @desc    Get list of cylinder swaps with filters
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/', ...adminStaffAuth, validateQuery(swapFiltersSchema), swapController.getSwaps);
+router.get('/', authorizeSwapAccess, addOutletFilter, validateQuery(swapFiltersSchema), swapController.getSwaps);
 
 /**
  * @route   POST /api/v1/swaps
  * @desc    Create a new cylinder swap
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.post('/', ...adminStaffAuth, validateBody(createSwapSchema), swapController.createSwap);
+router.post('/', authorizeSwapAccess, validateBody(createSwapSchema), swapController.createSwap);
 
 /**
  * @route   GET /api/v1/swaps/statistics
  * @desc    Get swap statistics
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/statistics', ...adminStaffAuth, swapController.getSwapStatistics);
+router.get('/statistics', authorizeSwapAccess, addOutletFilter, swapController.getSwapStatistics);
 
 /**
  * @route   GET /api/v1/swaps/find-cylinder
  * @desc    Find cylinder by lease ID, cylinder code, or QR code
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/find-cylinder', ...adminStaffAuth, swapController.findCylinder);
+router.get('/find-cylinder', authorizeSwapAccess, swapController.findCylinder);
 
 /**
  * @route   GET /api/v1/swaps/available-cylinders
  * @desc    Get available cylinders for swap
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/available-cylinders', ...adminStaffAuth, swapController.getAvailableCylinders);
+router.get('/available-cylinders', authorizeSwapAccess, addOutletFilter, swapController.getAvailableCylinders);
 
 /**
  * @route   GET /api/v1/swaps/customers/:customerId
  * @desc    Get swaps for a specific customer
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/customers/:customerId', ...adminStaffAuth, swapController.getSwapsByCustomer);
+router.get('/customers/:customerId', authorizeSwapAccess, addOutletFilter, swapController.getSwapsByCustomer);
 
 /**
  * @route   GET /api/v1/swaps/outlets/:outletId
  * @desc    Get swaps for a specific outlet
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/outlets/:outletId', ...adminStaffAuth, swapController.getOutletSwaps);
+router.get('/outlets/:outletId', authorizeSwapAccess, validateOutletParam('outletId'), swapController.getOutletSwaps);
 
 /**
  * @route   GET /api/v1/swaps/:id
  * @desc    Get swap details by ID
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/:id', ...adminStaffAuth, swapController.getSwapById);
+router.get('/:id', authorizeSwapAccess, swapController.getSwapById);
 
 /**
  * @route   GET /api/v1/swaps/:id/receipt
  * @desc    Get swap receipt data
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.get('/:id/receipt', ...adminStaffAuth, swapController.getSwapReceiptData);
+router.get('/:id/receipt', authorizeSwapAccess, swapController.getSwapReceiptData);
 
 /**
  * @route   PATCH /api/v1/swaps/:id/receipt-printed
  * @desc    Mark swap receipt as printed
- * @access  Private (Admin/Staff)
+ * @access  Private (Admin/Staff/Operator)
  */
-router.patch('/:id/receipt-printed', ...adminStaffAuth, swapController.markReceiptPrinted);
+router.patch('/:id/receipt-printed', authorizeSwapAccess, swapController.markReceiptPrinted);
 
 export default router;

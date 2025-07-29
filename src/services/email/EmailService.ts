@@ -28,6 +28,7 @@ export class EmailService {
     const providerType = config.email.provider as EmailProviderType;
     const defaultConfig = {
       from: config.email.from,
+      fromName: config.email.fromName,
       replyTo: config.email.replyTo,
     };
 
