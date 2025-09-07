@@ -45,7 +45,7 @@ export const LoginSession = sequelize.define<LoginSessionInstance>(
       },
     },
     sessionId: {
-      type: DataTypes.STRING(128),
+      type: DataTypes.STRING(512), // Increased to accommodate JWT tokens
       allowNull: false,
       unique: true,
       field: 'session_id',

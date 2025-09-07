@@ -33,9 +33,18 @@ export class OverdueService {
     
     const overdueLeases = await LeaseRecord.findAll({
       where: {
-        expectedReturnDate: {
-          [Op.lt]: now
-        },
+        [Op.and]: [
+          {
+            expectedReturnDate: {
+              [Op.lt]: now
+            }
+          },
+          {
+            expectedReturnDate: {
+              [Op.ne]: undefined
+            }
+          }
+        ],
         leaseStatus: {
           [Op.in]: ['active', 'overdue']
         }

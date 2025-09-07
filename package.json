@@ -19,6 +19,8 @@
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed": "sequelize-cli db:seed:all",
     "db:migration:generate": "sequelize-cli migration:generate",
+    "db:launch": "bash db.sh",
+    "db:clear-sessions": "ts-node src/scripts/clear-login-sessions.ts",
     "docs:new-feature": "bash scripts/create-feature-doc.sh"
   },
   "keywords": [

@@ -51,7 +51,6 @@ export class CustomerService {
     transaction?: Transaction
   ): Promise<{
     customer: UserPublicData;
-    paymentLink: PaymentLinkData;
   }> {
     const t = transaction || (await sequelize.transaction());
 
@@ -66,49 +65,35 @@ export class CustomerService {
         throw new AppError('Email already registered', CONSTANTS.HTTP_STATUS.CONFLICT);
       }
 
-      // Create customer account with pending status
+      // Create customer account with active status (no payment required)
       const customer = await User.create(
         {
           ...data,
           role: CONSTANTS.USER_ROLES.CUSTOMER,
-          paymentStatus: 'pending',
-          isActive: false, // Inactive until payment
+          paymentStatus: 'active', // Auto-activate without payment
+          isActive: true, // Active immediately
           emailVerified: false,
+          activatedAt: new Date(), // Set activation date
         },
         { transaction: t }
       );
 
-      // Generate payment link
-      const customerId = customer.getDataValue('id') as number;
-      const paymentReference = this.generatePaymentReference(customerId);
-      const paymentGatewayUrl = process.env.PAYMENT_GATEWAY_URL || config.frontendUrl;
-      const paymentLink: PaymentLinkData = {
-        userId: customerId,
-        amount: 500, // TODO: Make this configurable
-        paymentLink: `${paymentGatewayUrl}/pay/${paymentReference}`,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      };
-
-      // TODO: Integrate with actual payment gateway to create payment link
-      // For now, we'll just store the reference and simulate the link
-
-      // Send registration email with payment link
+      // Send welcome email
       try {
         const firstName = customer.getDataValue('firstName') as string;
         const customerEmail = customer.getDataValue('email') as string;
         
-        const registrationEmailTemplate = new CustomerRegistrationEmail({
+        const welcomeEmailTemplate = new CustomerWelcomeEmail({
           firstName,
           email: customerEmail,
-          paymentLink: paymentLink.paymentLink,
-          amount: paymentLink.amount,
-          expiresAt: paymentLink.expiresAt,
+          activationDate: new Date(),
+          supportEmail: config.supportEmail,
           companyName: config.companyName
         });
 
-        await emailService.sendTemplate(customerEmail, registrationEmailTemplate);
+        await emailService.sendTemplate(customerEmail, welcomeEmailTemplate);
       } catch (emailError) {
-        logger.error('Failed to send registration email:', emailError);
+        logger.error('Failed to send welcome email:', emailError);
         // Don't throw - registration should succeed even if email fails
       }
 
@@ -118,7 +103,6 @@ export class CustomerService {
 
       return {
         customer: customer.toPublicJSON(),
-        paymentLink,
       };
     } catch (error) {
       if (!transaction) {
@@ -128,6 +112,10 @@ export class CustomerService {
     }
   }
 
+  /**
+   * @deprecated Payment is no longer required for customer registration.
+   * This method is kept for backward compatibility.
+   */
   async activateCustomer(
     userId: number,
     paymentData: PaymentData,
@@ -141,20 +129,16 @@ export class CustomerService {
         throw new AppError('Customer not found', CONSTANTS.HTTP_STATUS.NOT_FOUND);
       }
 
+      // If customer is already active, just return their data (backward compatibility)
       if (customer.getDataValue('paymentStatus') === 'active') {
-        throw new AppError('Customer already activated', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
+        if (!transaction) {
+          await t.commit();
+        }
+        return customer.toPublicJSON();
       }
 
-      // Generate payment reference for cash payments if not provided
-      let finalPaymentReference = paymentData.paymentReference;
-      if (paymentData.paymentMethod === 'cash' && !finalPaymentReference) {
-        finalPaymentReference = this.generatePaymentReference(userId).replace('PAY-', 'CASH-');
-      }
-
-      // TODO: Verify payment with payment gateway using paymentReference for non-cash payments
-      // For now, we'll simulate successful payment verification
-
-      // Activate customer account
+      // For backward compatibility, activate any pending customers
+      // (This handles edge cases where old customers might still be pending)
       await customer.update(
         {
           paymentStatus: 'active',

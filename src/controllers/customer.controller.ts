@@ -13,13 +13,20 @@ export class CustomerController {
     return ResponseUtil.success(
       res,
       result,
-      'Customer registered successfully. Payment link sent.',
+      'Customer registered and activated successfully.',
       CONSTANTS.HTTP_STATUS.CREATED
     );
   });
 
+  /**
+   * @deprecated Payment is no longer required for customer registration.
+   * Customers are automatically activated upon registration.
+   * This endpoint is kept for backward compatibility only.
+   */
   activateCustomer = asyncHandler(async (req: Request, res: Response) => {
     const { userId, paymentAmount, paymentMethod, paymentReference } = req.body;
+    
+    // For backward compatibility, just return the existing customer if already active
     const customer = await customerService.activateCustomer(userId, {
       paymentAmount,
       paymentMethod,
@@ -50,10 +57,12 @@ export class CustomerController {
       limit: req.query.limit ? Number(req.query.limit) : undefined,
     };
 
-    // Staff can only see customers from their outlet
-    if (req.user!.role === CONSTANTS.USER_ROLES.STAFF && req.user!.outletId) {
-      filters.outletId = req.user!.outletId;
-    }
+    // Allow staff to see all customers for lease creation
+    // Customers should be able to visit any outlet for service
+    // Note: The outlet filter can still be applied if explicitly passed in the query
+    // if (req.user!.role === CONSTANTS.USER_ROLES.STAFF && req.user!.outletId) {
+    //   filters.outletId = req.user!.outletId;
+    // }
 
     const result = await customerService.searchCustomers(filters);
 

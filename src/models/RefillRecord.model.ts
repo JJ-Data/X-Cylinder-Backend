@@ -79,6 +79,17 @@ export const RefillRecord = sequelize.define<RefillRecordInstance>(
         min: 0,
       },
     },
+    paymentMethod: {
+      type: DataTypes.ENUM('cash', 'pos', 'bank_transfer'),
+      allowNull: true,
+      defaultValue: 'cash',
+      field: 'payment_method',
+    },
+    paymentReference: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'payment_reference',
+    },
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,

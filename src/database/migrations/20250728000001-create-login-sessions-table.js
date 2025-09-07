@@ -21,7 +21,7 @@ module.exports = {
         onDelete: 'CASCADE',
       },
       session_id: {
-        type: Sequelize.STRING(128),
+        type: Sequelize.STRING(512), // Increased to accommodate JWT tokens
         allowNull: false,
         unique: true,
       },

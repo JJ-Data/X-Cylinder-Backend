@@ -12,6 +12,7 @@ export interface LeaseRecordAttributes extends BaseModelAttributes {
   leaseStatus: 'active' | 'returned' | 'overdue';
   depositAmount: number;
   leaseAmount: number;
+  paymentMethod: 'cash' | 'pos' | 'bank_transfer';
   refundAmount?: number;
   notes?: string;
   lateFees?: number;
@@ -37,6 +38,7 @@ export interface LeaseRecordPublicData {
   leaseStatus: string;
   depositAmount: number;
   leaseAmount: number;
+  paymentMethod?: 'cash' | 'pos' | 'bank_transfer';
   refundAmount?: number;
   notes?: string;
   lateFees?: number;
@@ -85,6 +87,7 @@ export interface CreateLeaseDto {
   expectedReturnDate?: Date;
   depositAmount?: number; // Optional - will be calculated if not provided
   leaseAmount?: number; // Optional - will be calculated if not provided
+  paymentMethod?: 'cash' | 'pos' | 'bank_transfer'; // Payment method for deposit
   duration?: number; // Duration in days for pricing calculation
   notes?: string;
 }

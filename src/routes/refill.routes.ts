@@ -14,18 +14,18 @@ router.use(authenticate);
 // Apply outlet access control for operators
 router.use(enforceOutletAccess);
 
-// Create a new refill (Refill Operators only)
+// Create a new refill (Admin, Staff, and Refill Operators)
 router.post(
   '/',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.REFILL_OPERATOR),
+  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF, CONSTANTS.USER_ROLES.REFILL_OPERATOR),
   validate(refillValidation.create),
   refillController.createRefill
 );
 
-// Bulk refill (Refill Operators only)
+// Bulk refill (Admin, Staff, and Refill Operators)
 router.post(
   '/bulk',
-  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.REFILL_OPERATOR),
+  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF, CONSTANTS.USER_ROLES.REFILL_OPERATOR),
   validate(refillValidation.bulkRefill),
   refillController.bulkRefill
 );

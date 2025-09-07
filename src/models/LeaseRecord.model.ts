@@ -92,10 +92,17 @@ export const LeaseRecord = sequelize.define<LeaseRecordInstance>(
     leaseAmount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+      defaultValue: 0,
       field: 'lease_amount',
       validate: {
         min: 0,
       },
+    },
+    paymentMethod: {
+      type: DataTypes.ENUM('cash', 'pos', 'bank_transfer'),
+      defaultValue: 'cash',
+      allowNull: false,
+      field: 'payment_method',
     },
     refundAmount: {
       type: DataTypes.DECIMAL(10, 2),

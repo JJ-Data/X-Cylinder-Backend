@@ -197,8 +197,9 @@ export const leaseValidation = {
     customerId: commonSchemas.id.required(),
     expectedReturnDate: Joi.date().greater('now').optional(),
     depositAmount: Joi.number().min(0).required(),
-    leaseAmount: Joi.number().min(0).required(),
-    notes: Joi.string().trim().optional(),
+    leaseAmount: Joi.number().min(0).optional(), // Made optional - only deposit required
+    paymentMethod: Joi.string().valid('cash', 'pos', 'bank_transfer').required(),
+    notes: Joi.string().allow('', null).optional(), // Allow empty string and null
   }).or('cylinderId', 'cylinderCode', 'qrCode'),
 
   return: Joi.object({
@@ -228,7 +229,13 @@ export const refillValidation = {
     preRefillVolume: Joi.number().min(0).required(),
     postRefillVolume: Joi.number().min(0).required(),
     refillCost: Joi.number().min(0).optional(),
-    notes: Joi.string().trim().optional(),
+    paymentMethod: Joi.string().valid('cash', 'pos', 'bank_transfer').optional(),
+    paymentReference: Joi.string().trim().max(255).when('paymentMethod', {
+      is: Joi.exist().not('cash'),
+      then: Joi.required(),
+      otherwise: Joi.optional().allow('', null)
+    }),
+    notes: Joi.string().trim().allow('', null).optional(),
     batchNumber: Joi.string().trim().max(100).optional(),
   }),
 
@@ -245,7 +252,7 @@ export const refillValidation = {
       )
       .min(1)
       .required(),
-    notes: Joi.string().trim().optional(),
+    notes: Joi.string().trim().allow('', null).optional(),
   }),
 
   query: Joi.object({

@@ -31,10 +31,7 @@ export class RefillService {
         throw new AppError('Cylinder is not at this outlet', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
       }
 
-      // Verify cylinder is not currently leased
-      if (cylinder.getDataValue('status') === 'leased') {
-        throw new AppError('Cannot refill a leased cylinder', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
-      }
+      // Note: Leased cylinders CAN be refilled - customers can refill their leased cylinders anytime
 
       // Validate amounts
       if (data.refillCost !== undefined && data.refillCost < 0) {
@@ -89,17 +86,19 @@ export class RefillService {
           preRefillVolume: data.preRefillVolume,
           postRefillVolume: data.postRefillVolume,
           refillCost,
+          paymentMethod: data.paymentMethod || 'cash',
+          paymentReference: data.paymentReference,
           notes: data.notes ? `${data.notes}\nVolume Added: ${volumeAdded}kg` : `Volume Added: ${volumeAdded}kg`,
           batchNumber: data.batchNumber,
         },
         { transaction: t }
       );
 
-      // Update cylinder gas volume and status
+      // Update cylinder gas volume (keep existing status - don't change leased cylinders to available)
       await cylinder.update(
         {
           currentGasVolume: data.postRefillVolume,
-          status: 'available',
+          // Keep the existing status - if it's leased, it stays leased
         },
         { transaction: t }
       );

@@ -9,6 +9,8 @@ export interface RefillRecordAttributes extends BaseModelAttributes {
   postRefillVolume: number;
   volumeAdded: number;
   refillCost?: number;
+  paymentMethod?: 'cash' | 'pos' | 'bank_transfer';
+  paymentReference?: string;
   notes?: string;
   batchNumber?: string;
 }
@@ -25,6 +27,8 @@ export interface RefillRecordPublicData {
   postRefillVolume: number;
   volumeAdded: number;
   refillCost?: number;
+  paymentMethod?: 'cash' | 'pos' | 'bank_transfer';
+  paymentReference?: string;
   notes?: string;
   batchNumber?: string;
   createdAt: Date;
@@ -54,6 +58,8 @@ export interface CreateRefillDto {
   preRefillVolume: number;
   postRefillVolume: number;
   refillCost?: number;
+  paymentMethod?: 'cash' | 'pos' | 'bank_transfer';
+  paymentReference?: string;
   notes?: string;
   batchNumber?: string;
 }

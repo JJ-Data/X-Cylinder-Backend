@@ -88,9 +88,7 @@ export const Cylinder = sequelize.define<CylinderInstance>(
     tableName: 'cylinders',
     timestamps: true,
     indexes: [
-      {
-        fields: ['cylinder_code'],
-      },
+      // Removed index for cylinder_code - unique constraint already creates an index
       {
         fields: ['status'],
       },
@@ -100,9 +98,7 @@ export const Cylinder = sequelize.define<CylinderInstance>(
       {
         fields: ['type'],
       },
-      {
-        fields: ['qr_code'],
-      },
+      // Removed index for qr_code - unique constraint already creates an index
     ],
   }
 );

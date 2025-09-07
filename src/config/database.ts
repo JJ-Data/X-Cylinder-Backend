@@ -42,6 +42,10 @@ export const connectDatabase = async (): Promise<void> => {
       // await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
       // console.log('Foreign key checks disabled for sync.');
 
+      // Optional: Clear login sessions to avoid truncation errors with JWT tokens
+      // Uncomment the line below if you encounter session_id truncation errors
+      // await sequelize.query('TRUNCATE TABLE login_sessions');
+
       // Sync database schema
       // await sequelize.sync({ alter: true });
 

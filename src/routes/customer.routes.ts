@@ -29,11 +29,12 @@ router.use(authenticate);
 // Apply outlet access control for staff
 router.use(enforceOutletAccess);
 
-// Search customers (Admin and Staff) - outlet filtering applied automatically
+// Search customers (Admin and Staff) - no automatic outlet filtering
+// Staff can see all customers as customers can visit any outlet
 router.get(
   '/',
   authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
-  addOutletFilter,
+  // addOutletFilter removed - staff can see all customers for lease creation
   validate(customerValidation.search, 'query'),
   customerController.searchCustomers
 );

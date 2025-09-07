@@ -7,7 +7,7 @@ export interface LeaseConfirmationData extends EmailTemplateData {
   cylinderType: string;
   cylinderSize: string;
   leaseStartDate: Date;
-  expectedReturnDate: Date;
+  expectedReturnDate?: Date;  // Optional - may not have expected return date
   leaseCost: number;
   depositAmount: number;
   outletName: string;
@@ -65,12 +65,14 @@ export class LeaseConfirmationEmail extends BaseEmailTemplate<LeaseConfirmationD
             </div>
           </div>
 
+          ${expectedReturnDate ? `
           <div style="background-color: #fef7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
             <h4 style="margin: 0 0 8px 0; color: #ea580c;">📅 Expected Return Date</h4>
             <div style="font-size: 20px; font-weight: bold; color: #ea580c;">
               ${expectedReturnDate.toLocaleDateString()}
             </div>
           </div>
+          ` : ''}
         </div>
 
         <div style="background-color: #f0fdf4; border: 2px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
@@ -108,7 +110,7 @@ export class LeaseConfirmationEmail extends BaseEmailTemplate<LeaseConfirmationD
           <h4 style="margin: 0 0 12px 0; color: #dc2626;">⚠️ Important Notes</h4>
           <ul style="margin: 0; color: #7f1d1d;">
             <li>Keep this cylinder code (${cylinderCode}) for all future transactions</li>
-            <li>Return by ${expectedReturnDate.toLocaleDateString()} to avoid late fees</li>
+            ${expectedReturnDate ? `<li>Return by ${expectedReturnDate.toLocaleDateString()} to avoid late fees</li>` : ''}
             <li>Your security deposit will be refunded upon safe return</li>
             <li>Report any issues with the cylinder immediately</li>
             <li>Only use this cylinder for its intended purpose</li>
@@ -156,7 +158,7 @@ LEASE DETAILS:
 - Cylinder Type: ${cylinderType}
 - Size: ${cylinderSize}
 - Lease Start: ${leaseStartDate.toLocaleDateString()}
-- Expected Return: ${expectedReturnDate.toLocaleDateString()}
+${expectedReturnDate ? `- Expected Return: ${expectedReturnDate.toLocaleDateString()}` : '- Expected Return: Not specified'}
 
 COST BREAKDOWN:
 - Lease Fee: $${leaseCost.toFixed(2)}
@@ -173,7 +175,7 @@ ${returnInstructions}
 
 IMPORTANT NOTES:
 - Keep cylinder code (${cylinderCode}) for all future transactions
-- Return by ${expectedReturnDate.toLocaleDateString()} to avoid late fees
+${expectedReturnDate ? `- Return by ${expectedReturnDate.toLocaleDateString()} to avoid late fees` : ''}
 - Security deposit refunded upon safe return
 - Report any issues immediately
 - Use only for intended purpose

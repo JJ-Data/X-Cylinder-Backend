@@ -90,42 +90,22 @@ export class LeaseService {
 
       // Calculate pricing if not provided
       let depositAmount = data.depositAmount;
-      let leaseAmount = data.leaseAmount;
+      let leaseAmount = data.leaseAmount || 0; // Default to 0 if not provided
 
-      if (!depositAmount || !leaseAmount) {
-        const duration = data.duration || 
-          Math.ceil((new Date(data.expectedReturnDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-
-        // Determine customer tier based on role or default to regular
-        const customerTier: 'regular' | 'business' | 'premium' = 'regular';
+      // Only calculate deposit if not provided
+      if (!depositAmount) {
         const cylinderType = cylinder.getDataValue('cylinderType');
-
-        // Calculate lease amount if not provided
-        if (!leaseAmount) {
-          const leasePricing = await pricingService.calculatePrice({
-            operationType: OperationType.LEASE,
-            cylinderType,
-            quantity: 1,
-            customerTier,
-            outletId,
-            customerId: data.customerId,
-            duration,
-          });
-          leaseAmount = leasePricing.totalPrice;
-        }
-
-        // Calculate deposit amount if not provided
-        if (!depositAmount) {
-          const depositPricing = await pricingService.calculatePrice({
-            operationType: OperationType.DEPOSIT,
-            cylinderType,
-            quantity: 1,
-            customerTier,
-            outletId,
-            customerId: data.customerId,
-          });
-          depositAmount = depositPricing.totalPrice;
-        }
+        const customerTier: 'regular' | 'business' | 'premium' = 'regular';
+        
+        const depositPricing = await pricingService.calculatePrice({
+          operationType: OperationType.DEPOSIT,
+          cylinderType,
+          quantity: 1,
+          customerTier,
+          outletId,
+          customerId: data.customerId,
+        });
+        depositAmount = depositPricing.totalPrice;
       }
 
       // Validate amounts
@@ -133,12 +113,8 @@ export class LeaseService {
         throw new AppError('Amounts cannot be negative', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
       }
 
-      // Validate expected return date
-      if (!data.expectedReturnDate) {
-        throw new AppError('Expected return date is required', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
-      }
-
-      if (data.expectedReturnDate <= new Date()) {
+      // Validate expected return date if provided (optional)
+      if (data.expectedReturnDate && data.expectedReturnDate <= new Date()) {
         throw new AppError(
           'Expected return date must be in the future',
           CONSTANTS.HTTP_STATUS.BAD_REQUEST
@@ -156,6 +132,7 @@ export class LeaseService {
           expectedReturnDate: data.expectedReturnDate,
           depositAmount,
           leaseAmount,
+          paymentMethod: data.paymentMethod || 'cash',
           notes: data.notes,
           leaseStatus: 'active',
         },
@@ -665,10 +642,10 @@ export class LeaseService {
       return;
     }
 
-    if (!leaseRecord.expectedReturnDate) {
-      logger.warn(`No expected return date for lease ID: ${leaseRecord.id}. Cannot send confirmation email.`);
-      return;
-    }
+    // Build return instructions based on whether we have an expected return date
+    const returnInstructions = leaseRecord.expectedReturnDate
+      ? `Please return the cylinder to any ${process.env.COMPANY_NAME || 'CylinderX'} outlet by the expected return date. Ensure the cylinder is in good condition to receive your full security deposit refund.`
+      : `Please return the cylinder to any ${process.env.COMPANY_NAME || 'CylinderX'} outlet when you no longer need it. Ensure the cylinder is in good condition to receive your full security deposit refund.`;
 
     const emailData: LeaseConfirmationData = {
       to: customer.email,
@@ -678,13 +655,13 @@ export class LeaseService {
       cylinderType: cylinder?.type || 'Standard',
       cylinderSize: '20kg', // Default size - could be enhanced with actual cylinder size data
       leaseStartDate: new Date(leaseRecord.leaseDate),
-      expectedReturnDate: new Date(leaseRecord.expectedReturnDate),
+      expectedReturnDate: leaseRecord.expectedReturnDate ? new Date(leaseRecord.expectedReturnDate) : undefined,
       leaseCost: parseFloat(leaseRecord.leaseAmount.toString()),
       depositAmount: parseFloat(leaseRecord.depositAmount.toString()),
       outletName: outlet?.name || 'Unknown Outlet',
       outletLocation: outlet?.location || 'Location not specified',
       staffName: staff ? `${staff.firstName} ${staff.lastName}`.trim() : 'Staff Member',
-      returnInstructions: `Please return the cylinder to any ${process.env.COMPANY_NAME || 'CylinderX'} outlet by the expected return date. Ensure the cylinder is in good condition to receive your full security deposit refund.`,
+      returnInstructions,
       companyName: process.env.COMPANY_NAME || 'CylinderX',
       supportEmail: process.env.SUPPORT_EMAIL || 'support@cylinderx.com'
     };
