@@ -10,23 +10,13 @@ export enum DataType {
   STRING = 'string',
   NUMBER = 'number',
   BOOLEAN = 'boolean',
-  JSON = 'json',
-  ARRAY = 'array',
-}
-
-export enum CustomerTier {
-  REGULAR = 'regular',
-  BUSINESS = 'business',
-  PREMIUM = 'premium',
 }
 
 export enum OperationType {
   LEASE = 'LEASE',
   REFILL = 'REFILL',
   SWAP = 'SWAP',
-  REGISTRATION = 'REGISTRATION',
-  PENALTY = 'PENALTY',
-  DEPOSIT = 'DEPOSIT',
+  GENERAL = 'GENERAL',
 }
 
 interface BusinessSettingInstance
@@ -66,7 +56,7 @@ export const BusinessSetting = sequelize.define<BusinessSettingInstance>(
       get() {
         const rawValue = this.getDataValue('settingValue');
         const dataType = this.getDataValue('dataType');
-        
+
         // If the value is already parsed (from JSON column), return it
         if (rawValue !== null && rawValue !== undefined) {
           // For specific data types, ensure proper type conversion
@@ -75,9 +65,6 @@ export const BusinessSetting = sequelize.define<BusinessSettingInstance>(
               return typeof rawValue === 'number' ? rawValue : Number(rawValue);
             case DataType.BOOLEAN:
               return typeof rawValue === 'boolean' ? rawValue : Boolean(rawValue);
-            case DataType.JSON:
-            case DataType.ARRAY:
-              return typeof rawValue === 'object' ? rawValue : JSON.parse(rawValue);
             default:
               return typeof rawValue === 'string' ? rawValue : String(rawValue);
           }
@@ -109,42 +96,10 @@ export const BusinessSetting = sequelize.define<BusinessSettingInstance>(
       allowNull: true,
       field: 'cylinder_type',
     },
-    customerTier: {
-      type: DataTypes.ENUM(...Object.values(CustomerTier)),
-      allowNull: true,
-      field: 'customer_tier',
-    },
     operationType: {
       type: DataTypes.ENUM(...Object.values(OperationType)),
       allowNull: true,
       field: 'operation_type',
-    },
-    effectiveDate: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'effective_date',
-    },
-    expiryDate: {
-      type: DataTypes.DATE,
-      allowNull: true,
-      field: 'expiry_date',
-      validate: {
-        isAfterEffective(value: Date) {
-          if (value && this.effectiveDate && value <= this.effectiveDate) {
-            throw new Error('Expiry date must be after effective date');
-          }
-        },
-      },
-    },
-    priority: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-      validate: {
-        min: 0,
-        max: 9999,
-      },
     },
     isActive: {
       type: DataTypes.BOOLEAN,
@@ -170,14 +125,6 @@ export const BusinessSetting = sequelize.define<BusinessSettingInstance>(
         key: 'id',
       },
     },
-    version: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 1,
-      validate: {
-        min: 1,
-      },
-    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -194,12 +141,6 @@ export const BusinessSetting = sequelize.define<BusinessSettingInstance>(
     timestamps: true,
     underscored: true,
     hooks: {
-      beforeCreate: (setting: BusinessSettingInstance) => {
-        setting.version = 1;
-      },
-      beforeUpdate: (setting: BusinessSettingInstance) => {
-        setting.version += 1;
-      },
       beforeValidate: (setting: BusinessSettingInstance) => {
         if (setting.settingKey) {
           setting.settingKey = setting.settingKey.trim().toLowerCase();
@@ -210,14 +151,6 @@ export const BusinessSetting = sequelize.define<BusinessSettingInstance>(
       active: {
         where: {
           isActive: true,
-        },
-      },
-      effective: {
-        where: {
-          isActive: true,
-          effectiveDate: {
-            [Op.lte]: new Date(),
-          },
         },
       },
     },

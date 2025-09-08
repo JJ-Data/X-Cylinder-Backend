@@ -335,9 +335,7 @@ export class PricingService {
       [OperationType.LEASE]: ['lease.base_price', 'lease.daily_rate'],
       [OperationType.REFILL]: ['refill.price_per_kg'],
       [OperationType.SWAP]: ['swap.fee'],
-      [OperationType.REGISTRATION]: ['registration.fee'],
-      [OperationType.PENALTY]: ['penalty.rate'],
-      [OperationType.DEPOSIT]: ['deposit.amount'],
+      [OperationType.GENERAL]: ['general.fee'],
     };
 
     return settingsMap[operationType] || [];

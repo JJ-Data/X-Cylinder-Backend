@@ -4,7 +4,8 @@ import { sequelize } from '@config/database';
 import { emailService } from '@services/email/EmailService';
 import { ReturnOverdueEmail, ReturnOverdueData } from '@services/email/templates/ReturnOverdueEmail';
 import { config } from '@config/environment';
-import { settingsService } from './settings.service';
+import { simplifiedSettingsService } from './settings-simplified.service';
+import { simplifiedPricingService } from './pricing-simplified.service';
 
 export interface OverdueLeaseRecord {
   id: number;
@@ -115,8 +116,7 @@ export class OverdueService {
       console.log(`Found ${overdueLeases.length} overdue leases to process`);
 
       // Get late fee settings
-      const lateFeeSettings = await settingsService.getSetting('late_fees');
-      const lateFeePerDay = lateFeeSettings?.daily_late_fee || 5.00;
+      const lateFeePerDay = await simplifiedSettingsService.getSetting('late.fee.daily') || 10.00;
 
       for (const overdueLease of overdueLeases) {
         try {
@@ -270,8 +270,7 @@ export class OverdueService {
   }> {
     const overdueLeases = await this.findOverdueLeases();
     
-    const lateFeeSettings = await settingsService.getSetting('late_fees');
-    const lateFeePerDay = lateFeeSettings?.daily_late_fee || 5.00;
+    const lateFeePerDay = await simplifiedSettingsService.getSetting('late.fee.daily') || 10.00;
 
     const overdueByDays: { [key: string]: number } = {
       '1-3': 0,
@@ -357,8 +356,7 @@ export class OverdueService {
       notificationCount: (lease.getDataValue('notificationCount') as number) || 0
     };
 
-    const lateFeeSettings = await settingsService.getSetting('late_fees');
-    const lateFeePerDay = lateFeeSettings?.daily_late_fee || 5.00;
+    const lateFeePerDay = await simplifiedSettingsService.getSetting('late.fee.daily') || 10.00;
 
     const transaction = await sequelize.transaction();
     try {

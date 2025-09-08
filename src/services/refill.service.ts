@@ -4,7 +4,7 @@ import { AppError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
 import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
-import { pricingService } from './pricing.service';
+import { simplifiedPricingService } from './pricing-simplified.service';
 import { OperationType } from '@models/BusinessSetting.model';
 import { EmailService } from './email.service';
 import { RefillReceiptEmail, RefillReceiptData } from './email/templates/RefillReceiptEmail';
@@ -66,10 +66,9 @@ export class RefillService {
       if (!refillCost) {
         const cylinderType = cylinder.getDataValue('type') as string;
         
-        const refillPricing = await pricingService.calculatePrice({
+        const refillPricing = await simplifiedPricingService.calculatePrice({
           operationType: OperationType.REFILL,
           cylinderType,
-          quantity: 1,
           outletId,
           gasAmount: volumeAdded,
         });

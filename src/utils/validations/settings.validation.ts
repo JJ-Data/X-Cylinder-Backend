@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import { DataType, CustomerTier, OperationType } from '@models/BusinessSetting.model';
+import { DataType, OperationType } from '@models/BusinessSetting.model';
 
 export const settingsValidation = {
   createOrUpdateSetting: Joi.object({
@@ -10,7 +10,6 @@ export const settingsValidation = {
     scope: Joi.object({
       outletId: Joi.number().integer().positive().optional(),
       cylinderType: Joi.string().max(50).optional(),
-      customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
       operationType: Joi.string().valid(...Object.values(OperationType)).optional(),
     }).optional(),
     priority: Joi.number().integer().min(0).max(9999).default(0),
@@ -29,7 +28,6 @@ export const settingsValidation = {
     cylinderType: Joi.string().max(50).optional(),
     cylinderSize: Joi.string().max(20).optional(),
     quantity: Joi.number().integer().positive().default(1),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
     outletId: Joi.number().integer().positive().optional(),
     customerId: Joi.number().integer().positive().optional(),
     duration: Joi.number().integer().positive().optional(),
@@ -46,7 +44,6 @@ export const settingsValidation = {
         gasAmount: Joi.number().positive().optional(),
       })
     ).min(1).required(),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
     outletId: Joi.number().integer().positive().optional(),
     customerId: Joi.number().integer().positive().optional(),
     duration: Joi.number().integer().positive().optional(),
@@ -61,8 +58,7 @@ export const settingsValidation = {
         dataType: Joi.string().valid(...Object.values(DataType)).required(),
         outletId: Joi.number().integer().positive().optional(),
         cylinderType: Joi.string().max(50).optional(),
-        customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
-        operationType: Joi.string().valid(...Object.values(OperationType)).optional(),
+          operationType: Joi.string().valid(...Object.values(OperationType)).optional(),
         priority: Joi.number().integer().min(0).max(9999).default(0),
         effectiveDate: Joi.date().iso().optional(),
         expiryDate: Joi.date().iso().optional(),
@@ -80,7 +76,6 @@ export const settingsValidation = {
     effectiveOnly: Joi.boolean().default(true),
     outletId: Joi.number().integer().positive().optional(),
     cylinderType: Joi.string().max(50).optional(),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
     operationType: Joi.string().valid(...Object.values(OperationType)).optional(),
   }),
 
@@ -88,7 +83,6 @@ export const settingsValidation = {
     key: Joi.string().min(2).max(200).required(),
     outletId: Joi.number().integer().positive().optional(),
     cylinderType: Joi.string().max(50).optional(),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
     operationType: Joi.string().valid(...Object.values(OperationType)).optional(),
   }),
 
@@ -97,7 +91,6 @@ export const settingsValidation = {
     cylinderType: Joi.string().max(50).optional(),
     cylinderSize: Joi.string().max(20).optional(),
     quantity: Joi.number().integer().positive().default(1),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
     outletId: Joi.number().integer().positive().optional(),
     customerId: Joi.number().integer().positive().optional(),
     duration: Joi.number().integer().positive().optional(),
@@ -108,7 +101,6 @@ export const settingsValidation = {
     operationType: Joi.string().valid(...Object.values(OperationType)).required(),
     outletId: Joi.number().integer().positive().optional(),
     cylinderType: Joi.string().max(50).optional(),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
   }),
 
   getRevenueProjection: Joi.object({
@@ -116,6 +108,5 @@ export const settingsValidation = {
     estimatedVolume: Joi.number().integer().positive().required(),
     outletId: Joi.number().integer().positive().optional(),
     cylinderType: Joi.string().max(50).optional(),
-    customerTier: Joi.string().valid(...Object.values(CustomerTier)).optional(),
   }),
 };

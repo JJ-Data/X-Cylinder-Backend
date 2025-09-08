@@ -4,7 +4,7 @@ import { AppError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
 import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
-import { pricingService } from './pricing.service';
+import { simplifiedPricingService } from './pricing-simplified.service';
 import { OperationType } from '@models/BusinessSetting.model';
 import { EmailService } from './email.service';
 import { LeaseConfirmationEmail, LeaseConfirmationData } from './email/templates/LeaseConfirmationEmail';
@@ -95,17 +95,15 @@ export class LeaseService {
       // Only calculate deposit if not provided
       if (!depositAmount) {
         const cylinderType = cylinder.getDataValue('cylinderType');
-        const customerTier: 'regular' | 'business' | 'premium' = 'regular';
         
-        const depositPricing = await pricingService.calculatePrice({
-          operationType: OperationType.DEPOSIT,
+        const pricingResult = await simplifiedPricingService.calculatePrice({
+          operationType: OperationType.LEASE,
           cylinderType,
           quantity: 1,
-          customerTier,
           outletId,
-          customerId: data.customerId,
+          duration: 30, // Default lease duration
         });
-        depositAmount = depositPricing.totalPrice;
+        depositAmount = pricingResult.deposit || 0;
       }
 
       // Validate amounts

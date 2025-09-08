@@ -4,7 +4,8 @@ import { AppError } from '@utils/errors';
 import { CONSTANTS } from '@config/constants';
 import { sequelize } from '@config/database';
 import { Transaction, Op } from 'sequelize';
-import { settingsService } from './settings.service';
+import { simplifiedSettingsService } from './settings-simplified.service';
+import { simplifiedPricingService } from './pricing-simplified.service';
 import { OperationType } from '@models/BusinessSetting.model';
 import { EmailService } from './email.service';
 import { SwapReceiptEmail } from './email/templates/SwapReceiptEmail';
@@ -104,23 +105,18 @@ export class SwapService {
         throw new AppError('Only admin and staff members can perform swaps', CONSTANTS.HTTP_STATUS.FORBIDDEN);
       }
 
-      // Calculate swap fee based on condition using settings service
+      // Calculate swap fee based on condition
       let swapFee: number = data.swapFee || 0;
       if (!data.swapFee) {
-        const scope = {
-          outletId: lease.getDataValue('outletId'),
-          operationType: OperationType.SWAP,
-        };
+        const outletId = lease.getDataValue('outletId');
+        const condition = data.condition === 'damaged' ? 'damaged' : 'standard';
         
-        if (data.condition === 'poor') {
-          swapFee = await settingsService.getSetting('swap.poor_condition_fee', scope) || 
-                   await settingsService.getSetting('swap.fee', scope) || 0;
-        } else if (data.condition === 'damaged') {
-          swapFee = await settingsService.getSetting('swap.damaged_condition_fee', scope) || 
-                   await settingsService.getSetting('swap.fee', scope) || 0;
-        } else {
-          swapFee = await settingsService.getSetting('swap.fee', scope) || 0;
-        }
+        const swapPricing = await simplifiedPricingService.calculatePrice({
+          operationType: OperationType.SWAP,
+          outletId,
+          condition,
+        });
+        swapFee = swapPricing.totalPrice;
       }
 
       // Create swap record

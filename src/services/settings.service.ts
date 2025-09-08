@@ -12,7 +12,6 @@ import {
 } from '@app-types/settings.types';
 import {
   DataType,
-  CustomerTier,
   OperationType,
   BusinessSetting,
 } from '@models/BusinessSetting.model';
@@ -23,12 +22,11 @@ export class SettingsService {
    * Hierarchy: Specific scope → Outlet → Global
    */
   async getSetting(key: string, scope: SettingsScope = {}): Promise<any> {
-    const settings = await BusinessSetting.scope('effective').findAll({
+    const settings = await BusinessSetting.scope('active').findAll({
       where: {
         settingKey: key,
       },
       order: [
-        ['priority', 'DESC'],
         ['createdAt', 'ASC'],
       ],
     });
@@ -75,10 +73,9 @@ export class SettingsService {
       throw new Error(`Category '${categoryName}' not found`);
     }
 
-    const settings = await BusinessSetting.scope('effective').findAll({
+    const settings = await BusinessSetting.scope('active').findAll({
       where: { categoryId: category.id },
       order: [
-        ['priority', 'DESC'],
         ['settingKey', 'ASC'],
       ],
     });
@@ -178,9 +175,6 @@ export class SettingsService {
       await existingSetting.update({
         settingValue: value,
         dataType,
-        priority,
-        effectiveDate: effectiveDate || existingSetting.effectiveDate,
-        expiryDate,
         updatedBy: createdBy,
       });
       setting = existingSetting;
@@ -193,15 +187,10 @@ export class SettingsService {
         dataType,
         outletId: scope.outletId,
         cylinderType: scope.cylinderType,
-        customerTier: scope.customerTier,
         operationType: scope.operationType,
-        priority,
-        effectiveDate: effectiveDate || new Date(),
-        expiryDate,
         isActive: true,
         createdBy,
         updatedBy: createdBy,
-        version: 1,
       };
 
       setting = await BusinessSetting.create(createData);
@@ -237,7 +226,6 @@ export class SettingsService {
       scope: {
         outletId: setting.outletId,
         cylinderType: setting.cylinderType,
-        customerTier: setting.customerTier,
         operationType: setting.operationType,
       },
     };
@@ -289,7 +277,7 @@ export class SettingsService {
     const currentDate = new Date();
     // Use a simpler where clause to avoid complex Sequelize typing issues
     const rules = await PricingRule.scope('active').findAll({
-      order: [['priority', 'DESC']],
+      order: [['createdAt', 'ASC']],
     });
 
     let finalPrice = basePrice;
@@ -604,9 +592,7 @@ export class SettingsService {
     }
 
     if (effectiveOnly) {
-      const currentDate = new Date();
-      where.effectiveDate = { [Op.lte]: currentDate };
-      // Simplified condition for expiry date to avoid complex typing
+      // Only show active settings when effectiveOnly is true
       where.isActive = true;
     }
 
@@ -625,7 +611,6 @@ export class SettingsService {
       offset,
       limit,
       order: [
-        ['priority', 'DESC'],
         ['settingKey', 'ASC'],
       ],
     });
@@ -654,11 +639,6 @@ export class SettingsService {
         return typeof setting.settingValue === 'boolean'
           ? setting.settingValue
           : Boolean(setting.settingValue);
-      case DataType.JSON:
-      case DataType.ARRAY:
-        return typeof setting.settingValue === 'object'
-          ? setting.settingValue
-          : JSON.parse(setting.settingValue);
       case DataType.STRING:
       default:
         return String(setting.settingValue);
@@ -731,9 +711,7 @@ export class SettingsService {
       [OperationType.LEASE]: SETTING_KEYS.LEASE_BASE_PRICE,
       [OperationType.REFILL]: SETTING_KEYS.REFILL_PRICE_PER_KG,
       [OperationType.SWAP]: SETTING_KEYS.SWAP_FEE,
-      [OperationType.REGISTRATION]: SETTING_KEYS.REGISTRATION_FEE,
-      [OperationType.PENALTY]: SETTING_KEYS.PENALTY_RATE,
-      [OperationType.DEPOSIT]: SETTING_KEYS.DEPOSIT_AMOUNT,
+      [OperationType.GENERAL]: 'general.fee',
     };
 
     let key = baseKeys[operationType];

@@ -28,15 +28,10 @@ export interface BusinessSettingAttributes {
   dataType: 'string' | 'number' | 'boolean' | 'json' | 'array';
   outletId?: number;
   cylinderType?: string;
-  customerTier?: 'regular' | 'business' | 'premium';
-  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'REGISTRATION' | 'PENALTY' | 'DEPOSIT';
-  effectiveDate: Date;
-  expiryDate?: Date;
-  priority: number;
+  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'GENERAL';
   isActive: boolean;
   createdBy: number;
   updatedBy: number;
-  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,15 +43,10 @@ export interface BusinessSettingCreationAttributes {
   dataType?: 'string' | 'number' | 'boolean' | 'json' | 'array';
   outletId?: number;
   cylinderType?: string;
-  customerTier?: 'regular' | 'business' | 'premium';
-  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'REGISTRATION' | 'PENALTY' | 'DEPOSIT';
-  effectiveDate?: Date;
-  expiryDate?: Date;
-  priority?: number;
+  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'GENERAL';
   isActive?: boolean;
   createdBy: number;
   updatedBy: number;
-  version?: number;
 }
 
 export interface PricingRuleAttributes {
@@ -179,7 +169,7 @@ export interface BusinessSettingResponse {
   outletId?: number;
   cylinderType?: string;
   customerTier?: 'regular' | 'business' | 'premium';
-  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'REGISTRATION' | 'PENALTY' | 'DEPOSIT';
+  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'GENERAL';
   effectiveDate: Date;
   expiryDate?: Date;
   priority: number;
@@ -297,7 +287,7 @@ export interface CreateBusinessSettingDto {
   outletId?: number;
   cylinderType?: string;
   customerTier?: 'regular' | 'business' | 'premium';
-  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'REGISTRATION' | 'PENALTY' | 'DEPOSIT';
+  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'GENERAL';
   effectiveDate?: Date;
   expiryDate?: Date;
   priority?: number;
@@ -353,7 +343,7 @@ export interface SettingsQueryParams {
   outletId?: number;
   cylinderType?: string;
   customerTier?: 'regular' | 'business' | 'premium';
-  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'REGISTRATION' | 'PENALTY' | 'DEPOSIT';
+  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'GENERAL';
   isActive?: boolean;
   search?: string;
   effectiveOnly?: boolean;
@@ -510,7 +500,7 @@ export interface SettingsScope {
   outletId?: number;
   cylinderType?: string;
   customerTier?: 'regular' | 'business' | 'premium';
-  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'REGISTRATION' | 'PENALTY' | 'DEPOSIT';
+  operationType?: 'LEASE' | 'REFILL' | 'SWAP' | 'GENERAL';
   quantity?: number;
   cylinderSize?: string;
 }

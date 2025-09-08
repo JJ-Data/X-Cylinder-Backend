@@ -146,12 +146,11 @@ export class LeaseController {
       duration: durationDays,
     });
 
-    // Get deposit pricing quote
+    // Get deposit pricing quote (using GENERAL for now)
     const depositPricing = await pricingService.calculatePrice({
-      operationType: OperationType.DEPOSIT,
+      operationType: OperationType.GENERAL,
       cylinderType: cylinderType as string,
       quantity: 1,
-      customerTier: customerTier as 'regular' | 'business' | 'premium' || 'regular',
       outletId,
     });
 
