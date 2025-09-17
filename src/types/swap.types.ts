@@ -11,13 +11,18 @@ export interface SwapRecordAttributes extends BaseModelAttributes {
   damageNotes?: string;
   swapFee: number;
   reasonForFee?: string;
+  oldCylinderGasVolume?: number;
+  newCylinderGasVolume?: number;
+  gasVolumeDifference?: number;
+  refillCost: number;
   receiptPrinted: boolean;
   notes?: string;
 }
 
-export interface SwapRecordCreationAttributes extends Omit<SwapRecordAttributes, 'id' | 'createdAt' | 'updatedAt' | 'swapDate' | 'receiptPrinted'> {
+export interface SwapRecordCreationAttributes extends Omit<SwapRecordAttributes, 'id' | 'createdAt' | 'updatedAt' | 'swapDate' | 'receiptPrinted' | 'refillCost'> {
   swapDate?: Date;
   receiptPrinted?: boolean;
+  refillCost?: number;
 }
 
 export interface SwapRecordUpdateAttributes extends Partial<Pick<SwapRecordAttributes, 'condition' | 'weightRecorded' | 'damageNotes' | 'swapFee' | 'reasonForFee' | 'receiptPrinted' | 'notes'>> {}
@@ -34,6 +39,10 @@ export interface SwapRecordPublicData {
   damageNotes?: string;
   swapFee: number;
   reasonForFee?: string;
+  oldCylinderGasVolume?: number;
+  newCylinderGasVolume?: number;
+  gasVolumeDifference?: number;
+  refillCost: number;
   receiptPrinted: boolean;
   notes?: string;
   createdAt: Date;

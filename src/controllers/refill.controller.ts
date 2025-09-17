@@ -4,6 +4,8 @@ import { ResponseUtil } from '@utils/response';
 import { CONSTANTS } from '@config/constants';
 import { asyncHandler } from '@utils/asyncHandler';
 import { AuthRequest } from '@app-types/auth.types';
+import { simplifiedPricingService } from '@services/pricing-simplified.service';
+import { OperationType } from '@models/BusinessSetting.model';
 
 export class RefillController {
   createRefill = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -113,6 +115,50 @@ export class RefillController {
     const statistics = await refillService.getRefillStatistics(filters);
     
     return ResponseUtil.success(res, statistics);
+  });
+
+  getRefillQuote = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { cylinderType, gasAmount } = req.query;
+    const outletId = req.user!.outletId;
+
+    if (!gasAmount) {
+      return ResponseUtil.badRequest(res, 'Gas amount is required');
+    }
+
+    // Get refill pricing quote
+    const refillPricing = await simplifiedPricingService.calculatePrice({
+      operationType: OperationType.REFILL,
+      cylinderType: cylinderType as string,
+      gasAmount: Number(gasAmount),
+      outletId,
+    });
+
+    const quote = {
+      // Amounts
+      subtotal: refillPricing.subtotal,
+      taxAmount: refillPricing.taxAmount,
+      taxRate: refillPricing.taxRate,
+      taxType: refillPricing.taxType,
+      totalPrice: refillPricing.totalPrice,
+      
+      // Metadata
+      gasAmount: Number(gasAmount),
+      pricePerKg: refillPricing.basePrice,
+      cylinderType: cylinderType || 'standard',
+      
+      // Breakdown
+      breakdown: {
+        pricePerKg: refillPricing.basePrice,
+        gasAmount: Number(gasAmount),
+        subtotal: refillPricing.subtotal,
+        taxAmount: refillPricing.taxAmount,
+        taxRate: refillPricing.taxRate,
+        taxType: refillPricing.taxType,
+        total: refillPricing.totalPrice,
+      },
+    };
+
+    return ResponseUtil.success(res, quote, 'Refill pricing quote generated successfully');
   });
 }
 

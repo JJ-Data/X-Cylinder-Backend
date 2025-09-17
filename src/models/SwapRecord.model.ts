@@ -88,6 +88,39 @@ export const SwapRecord = sequelize.define<SwapRecordInstance>(
       allowNull: true,
       field: 'reason_for_fee',
     },
+    oldCylinderGasVolume: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      field: 'old_cylinder_gas_volume',
+      validate: {
+        min: 0,
+      },
+    },
+    newCylinderGasVolume: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      field: 'new_cylinder_gas_volume',
+      validate: {
+        min: 0,
+      },
+    },
+    gasVolumeDifference: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      field: 'gas_volume_difference',
+      validate: {
+        min: 0,
+      },
+    },
+    refillCost: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0.0,
+      field: 'refill_cost',
+      validate: {
+        min: 0,
+      },
+    },
     receiptPrinted: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

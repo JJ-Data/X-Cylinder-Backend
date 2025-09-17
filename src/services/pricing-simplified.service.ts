@@ -8,19 +8,24 @@ export interface SimplePricingRequest {
   outletId?: number;
   duration?: number; // For lease operations (in days)
   gasAmount?: number; // For refill operations (in kg)
-  condition?: 'standard' | 'damaged'; // For swap operations
+  condition?: 'good' | 'poor' | 'damaged'; // For swap and return operations
 }
 
 export interface SimplePricingResult {
   basePrice: number;
+  subtotal: number;
+  taxAmount: number;
+  taxRate: number;
+  taxType: 'inclusive' | 'exclusive';
   totalPrice: number;
   deposit?: number;
-  tax?: number;
   breakdown: {
     unitPrice: number;
     quantity: number;
     subtotal: number;
     taxAmount: number;
+    taxRate: number;
+    taxType: 'inclusive' | 'exclusive';
     depositAmount?: number;
   };
 }
@@ -58,28 +63,50 @@ export class SimplifiedPricingService {
         throw new Error(`Unsupported operation type: ${request.operationType}`);
     }
     
-    // Apply tax if configured
+    // Get tax configuration
     const taxRate = await simplifiedSettingsService.getSetting('tax.rate', request.outletId) || 0;
-    const taxAmount = totalPrice * (taxRate / 100);
-    const finalTotal = totalPrice + taxAmount;
+    const taxType = await simplifiedSettingsService.getSetting('tax.type', request.outletId) || 'exclusive';
+    
+    let subtotal = totalPrice;
+    let taxAmount = 0;
+    let finalTotal = totalPrice;
+    
+    if (taxRate > 0) {
+      if (taxType === 'inclusive') {
+        // Tax is included in the price - extract it
+        taxAmount = totalPrice * (taxRate / (100 + taxRate));
+        subtotal = totalPrice - taxAmount;
+        finalTotal = totalPrice;
+      } else {
+        // Tax is exclusive - add it on top
+        taxAmount = totalPrice * (taxRate / 100);
+        subtotal = totalPrice;
+        finalTotal = totalPrice + taxAmount;
+      }
+    }
     
     return {
       basePrice,
+      subtotal,
+      taxAmount,
+      taxRate,
+      taxType: taxType as 'inclusive' | 'exclusive',
       totalPrice: finalTotal,
       deposit,
-      tax: taxAmount,
       breakdown: {
         unitPrice: basePrice,
         quantity: request.quantity || 1,
-        subtotal: totalPrice,
+        subtotal,
         taxAmount,
+        taxRate,
+        taxType: taxType as 'inclusive' | 'exclusive',
         depositAmount: deposit,
       },
     };
   }
 
   /**
-   * Calculate lease pricing
+   * Calculate lease pricing - per KG basis
    */
   private async calculateLeasePrice(request: SimplePricingRequest): Promise<{
     basePrice: number;
@@ -87,20 +114,25 @@ export class SimplifiedPricingService {
     deposit: number;
   }> {
     const cylinderType = request.cylinderType || '12kg';
-    const duration = request.duration || 1;
     
-    // Get daily rate
-    const dailyRateKey = `lease.base_price.${cylinderType}`;
-    const basePrice = await simplifiedSettingsService.getSetting(dailyRateKey, request.outletId) || 50;
+    // Extract cylinder size from cylinderType (e.g., "12kg" -> 12)
+    const cylinderSize = parseInt(cylinderType.replace(/[^\d]/g, '')) || 12;
     
-    // Calculate total lease cost
-    const totalPrice = basePrice * duration;
+    // Get per-KG pricing
+    const feePerKg = await simplifiedSettingsService.getSetting('lease.fee_per_kg', request.outletId) || 1000;
+    const depositPerKg = await simplifiedSettingsService.getSetting('lease.deposit_per_kg', request.outletId) || 500;
     
-    // Get deposit
-    const depositKey = `lease.deposit.${cylinderType}`;
-    const deposit = await simplifiedSettingsService.getSetting(depositKey, request.outletId) || 500;
+    // Calculate total lease cost (one-time fee based on cylinder size)
+    const totalPrice = feePerKg * cylinderSize;
     
-    return { basePrice, totalPrice, deposit };
+    // Calculate deposit based on cylinder size
+    const deposit = depositPerKg * cylinderSize;
+    
+    return { 
+      basePrice: feePerKg, // Per-KG rate for breakdown
+      totalPrice, 
+      deposit 
+    };
   }
 
   /**
@@ -128,19 +160,54 @@ export class SimplifiedPricingService {
   }
 
   /**
-   * Calculate swap fee
+   * Calculate swap fee based on cylinder condition
    */
   private async calculateSwapFee(request: SimplePricingRequest): Promise<{
     basePrice: number;
     totalPrice: number;
   }> {
-    const condition = request.condition || 'standard';
+    const condition = request.condition || 'good';
     
-    // Get appropriate fee based on condition
-    const feeKey = condition === 'damaged' ? 'swap.fee.damaged' : 'swap.fee.standard';
-    const swapFee = await simplifiedSettingsService.getSetting(feeKey, request.outletId) || 0;
+    // Get appropriate fee percentage based on condition
+    let feeKey = 'swap.fee.good';
+    if (condition === 'poor') {
+      feeKey = 'swap.fee.poor';
+    } else if (condition === 'damaged') {
+      feeKey = 'swap.fee.damaged';
+    }
+    
+    const swapFeePercentage = await simplifiedSettingsService.getSetting(feeKey, request.outletId) || 0;
+    
+    // Calculate fee as percentage of deposit (for consistency with return penalties)
+    // Get the deposit amount for the cylinder type
+    const cylinderType = request.cylinderType || '12kg';
+    const cylinderSize = parseInt(cylinderType.replace(/[^\d]/g, '')) || 12;
+    const depositPerKg = await simplifiedSettingsService.getSetting('lease.deposit_per_kg', request.outletId) || 500;
+    const depositAmount = depositPerKg * cylinderSize;
+    
+    // Calculate swap fee as percentage of deposit
+    const swapFee = (depositAmount * swapFeePercentage) / 100;
     
     return { basePrice: swapFee, totalPrice: swapFee };
+  }
+  
+  /**
+   * Calculate return penalty based on cylinder condition and deposit amount
+   */
+  async calculateReturnPenalty(condition: string, depositAmount: number, outletId?: number): Promise<number> {
+    let penaltyKey = 'return.penalty.good';
+    
+    if (condition === 'poor') {
+      penaltyKey = 'return.penalty.poor';
+    } else if (condition === 'damaged') {
+      penaltyKey = 'return.penalty.damaged';
+    }
+    
+    // Get penalty percentage
+    const penaltyPercentage = await simplifiedSettingsService.getSetting(penaltyKey, outletId) || 0;
+    
+    // Calculate penalty as percentage of deposit
+    return (depositAmount * penaltyPercentage) / 100;
   }
 
   /**
@@ -152,6 +219,11 @@ export class SimplifiedPricingService {
     outletId?: number
   ): Promise<{
     price: number;
+    subtotal: number;
+    taxAmount: number;
+    taxRate: number;
+    taxType: 'inclusive' | 'exclusive';
+    total: number;
     deposit?: number;
     description: string;
   }> {
@@ -167,7 +239,7 @@ export class SimplifiedPricingService {
     let description = '';
     switch (operationType) {
       case OperationType.LEASE:
-        description = `Daily lease rate for ${cylinderType || '12kg'} cylinder`;
+        description = `Lease fee for ${cylinderType || '12kg'} cylinder (per-KG pricing)`;
         break;
       case OperationType.REFILL:
         description = 'Gas refill price per kg';
@@ -179,6 +251,11 @@ export class SimplifiedPricingService {
     
     return {
       price: result.basePrice,
+      subtotal: result.subtotal,
+      taxAmount: result.taxAmount,
+      taxRate: result.taxRate,
+      taxType: result.taxType,
+      total: result.totalPrice,
       deposit: result.deposit,
       description,
     };
@@ -200,14 +277,14 @@ export class SimplifiedPricingService {
     missingSettings: string[];
   }> {
     const requiredSettings = [
-      'lease.base_price.12kg',
-      'lease.base_price.25kg',
-      'lease.base_price.50kg',
-      'lease.deposit.12kg',
-      'lease.deposit.25kg',
-      'lease.deposit.50kg',
+      'lease.fee_per_kg',
+      'lease.deposit_per_kg',
+      'return.penalty.good',
+      'return.penalty.poor',
+      'return.penalty.damaged',
       'refill.price_per_kg',
-      'swap.fee.standard',
+      'swap.fee.good',
+      'swap.fee.poor',
       'swap.fee.damaged',
     ];
     

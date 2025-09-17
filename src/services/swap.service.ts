@@ -105,11 +105,12 @@ export class SwapService {
         throw new AppError('Only admin and staff members can perform swaps', CONSTANTS.HTTP_STATUS.FORBIDDEN);
       }
 
+      const outletId = lease.getDataValue('outletId');
+      
       // Calculate swap fee based on condition
       let swapFee: number = data.swapFee || 0;
       if (!data.swapFee) {
-        const outletId = lease.getDataValue('outletId');
-        const condition = data.condition === 'damaged' ? 'damaged' : 'standard';
+        const condition = data.condition === 'damaged' ? 'damaged' : data.condition === 'poor' ? 'poor' : 'good';
         
         const swapPricing = await simplifiedPricingService.calculatePrice({
           operationType: OperationType.SWAP,
@@ -118,8 +119,23 @@ export class SwapService {
         });
         swapFee = swapPricing.totalPrice;
       }
+      
+      // Calculate gas refill cost
+      const oldCylinderGasVolume = data.weightRecorded || oldCylinder.getDataValue('currentGasVolume') || 0;
+      const newCylinderGasVolume = newCylinder.getDataValue('maxGasVolume') || newCylinder.getDataValue('currentGasVolume');
+      const gasVolumeDifference = Math.max(0, newCylinderGasVolume - oldCylinderGasVolume);
+      
+      let refillCost = 0;
+      if (gasVolumeDifference > 0) {
+        const refillPricing = await simplifiedPricingService.calculatePrice({
+          operationType: OperationType.REFILL,
+          outletId,
+          gasAmount: gasVolumeDifference,
+        });
+        refillCost = refillPricing.totalPrice;
+      }
 
-      // Create swap record
+      // Create swap record with gas tracking
       const swapData = {
         leaseId: lease.getDataValue('id'),
         oldCylinderId: oldCylinder.getDataValue('id'),
@@ -129,7 +145,11 @@ export class SwapService {
         weightRecorded: data.weightRecorded,
         damageNotes: data.damageNotes,
         swapFee,
-        reasonForFee: data.reasonForFee,
+        reasonForFee: data.reasonForFee || `Condition fee: ${data.condition}, Gas refill: ${gasVolumeDifference.toFixed(2)}kg`,
+        oldCylinderGasVolume,
+        newCylinderGasVolume,
+        gasVolumeDifference,
+        refillCost,
         notes: data.notes,
       };
 

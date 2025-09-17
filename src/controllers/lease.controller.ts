@@ -4,7 +4,7 @@ import { ResponseUtil } from '@utils/response';
 import { CONSTANTS } from '@config/constants';
 import { asyncHandler } from '@utils/asyncHandler';
 import { AuthRequest } from '@app-types/auth.types';
-import { pricingService } from '@services/pricing.service';
+import { simplifiedPricingService } from '@services/pricing-simplified.service';
 import { OperationType } from '@models/BusinessSetting.model';
 
 export class LeaseController {
@@ -38,9 +38,16 @@ export class LeaseController {
   });
 
   returnCylinder = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
     const returnStaffId = req.user!.id;
     
-    const lease = await leaseService.returnCylinder(req.body, returnStaffId);
+    // Add leaseId to the body data for the service
+    const returnData = {
+      ...req.body,
+      leaseId: Number(id)
+    };
+    
+    const lease = await leaseService.returnCylinder(returnData, returnStaffId);
     
     return ResponseUtil.success(
       res,
@@ -127,46 +134,55 @@ export class LeaseController {
   });
 
   getPricingQuote = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { cylinderType, customerTier, duration } = req.query;
+    const { cylinderType, customerTier } = req.query;
     const outletId = req.user!.outletId!;
 
     if (!cylinderType) {
       return ResponseUtil.badRequest(res, 'Cylinder type is required');
     }
 
-    const durationDays = duration ? Number(duration) : 30; // Default 30 days
-
-    // Get lease pricing quote
-    const leasePricing = await pricingService.calculatePrice({
+    // Get lease pricing quote (no duration needed for per-KG pricing)
+    const leasePricing = await simplifiedPricingService.calculatePrice({
       operationType: OperationType.LEASE,
-      cylinderType: cylinderType as string,
-      quantity: 1,
-      customerTier: customerTier as 'regular' | 'business' | 'premium' || 'regular',
-      outletId,
-      duration: durationDays,
-    });
-
-    // Get deposit pricing quote (using GENERAL for now)
-    const depositPricing = await pricingService.calculatePrice({
-      operationType: OperationType.GENERAL,
       cylinderType: cylinderType as string,
       quantity: 1,
       outletId,
     });
 
     const quote = {
-      leaseAmount: leasePricing.totalPrice,
-      depositAmount: depositPricing.totalPrice,
-      duration: durationDays,
+      // Amounts
+      subtotal: leasePricing.subtotal,
+      taxAmount: leasePricing.taxAmount,
+      taxRate: leasePricing.taxRate,
+      taxType: leasePricing.taxType,
+      leaseAmount: leasePricing.totalPrice, // Total including tax
+      depositAmount: leasePricing.deposit,
+      totalAmount: leasePricing.totalPrice + (leasePricing.deposit || 0),
+      
+      // Metadata
       cylinderType,
       customerTier: customerTier || 'regular',
+      pricingModel: 'per_kg',
+      
+      // Detailed breakdown
       breakdown: {
-        lease: leasePricing.breakdown,
-        deposit: depositPricing.breakdown,
-      },
-      appliedRules: {
-        lease: leasePricing.appliedRules,
-        deposit: depositPricing.appliedRules,
+        lease: {
+          subtotal: leasePricing.subtotal,
+          taxAmount: leasePricing.taxAmount,
+          taxRate: leasePricing.taxRate,
+          taxType: leasePricing.taxType,
+          total: leasePricing.totalPrice,
+        },
+        deposit: { 
+          amount: leasePricing.deposit || 0 
+        },
+        summary: {
+          leaseSubtotal: leasePricing.subtotal,
+          tax: leasePricing.taxAmount,
+          leaseTotal: leasePricing.totalPrice,
+          deposit: leasePricing.deposit || 0,
+          grandTotal: leasePricing.totalPrice + (leasePricing.deposit || 0),
+        }
       },
     };
 

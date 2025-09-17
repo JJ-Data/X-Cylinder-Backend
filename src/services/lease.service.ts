@@ -7,7 +7,10 @@ import { Transaction, Op } from 'sequelize';
 import { simplifiedPricingService } from './pricing-simplified.service';
 import { OperationType } from '@models/BusinessSetting.model';
 import { EmailService } from './email.service';
-import { LeaseConfirmationEmail, LeaseConfirmationData } from './email/templates/LeaseConfirmationEmail';
+import {
+  LeaseConfirmationEmail,
+  LeaseConfirmationData,
+} from './email/templates/LeaseConfirmationEmail';
 import { logger } from '@utils/logger';
 
 export class LeaseService {
@@ -30,16 +33,16 @@ export class LeaseService {
         throw new AppError('User is not a customer', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
       }
 
-      if (customer.getDataValue('paymentStatus') !== 'active') {
-        throw new AppError(
-          'Customer account is not active. Payment required.',
-          CONSTANTS.HTTP_STATUS.BAD_REQUEST
-        );
-      }
+      // if (customer.getDataValue('paymentStatus') !== 'active') {
+      //   throw new AppError(
+      //     'Customer account is not active. Payment required.',
+      //     CONSTANTS.HTTP_STATUS.BAD_REQUEST
+      //   );
+      // }
 
       // Find cylinder by ID, code, or QR code
       let cylinder: any;
-      
+
       if (data.cylinderId) {
         cylinder = await Cylinder.findByPk(data.cylinderId, { transaction: t });
       } else if (data.cylinderCode) {
@@ -53,7 +56,7 @@ export class LeaseService {
           transaction: t,
         });
       }
-      
+
       if (!cylinder) {
         throw new AppError('Cylinder not found', CONSTANTS.HTTP_STATUS.NOT_FOUND);
       }
@@ -95,7 +98,7 @@ export class LeaseService {
       // Only calculate deposit if not provided
       if (!depositAmount) {
         const cylinderType = cylinder.getDataValue('cylinderType');
-        
+
         const pricingResult = await simplifiedPricingService.calculatePrice({
           operationType: OperationType.LEASE,
           cylinderType,
@@ -197,8 +200,28 @@ export class LeaseService {
         throw new AppError('Cylinder data not found', CONSTANTS.HTTP_STATUS.INTERNAL_SERVER_ERROR);
       }
 
+      // Calculate refund amount automatically based on condition if not provided
+      let refundAmount = data.refundAmount;
+      
+      if (refundAmount === undefined || refundAmount === null) {
+        // Get deposit amount from lease
+        const depositAmount = parseFloat(lease.getDataValue('depositAmount').toString()) || 0;
+        const outletId = lease.getDataValue('outletId');
+        
+        // Calculate penalty based on condition
+        const condition = data.condition || 'good';
+        const penalty = await simplifiedPricingService.calculateReturnPenalty(
+          condition,
+          depositAmount,
+          outletId
+        );
+        
+        // Calculate refund (deposit minus penalty)
+        refundAmount = Math.max(0, depositAmount - penalty);
+      }
+
       // Validate refund amount
-      if (data.refundAmount && data.refundAmount < 0) {
+      if (refundAmount < 0) {
         throw new AppError('Refund amount cannot be negative', CONSTANTS.HTTP_STATUS.BAD_REQUEST);
       }
 
@@ -220,7 +243,7 @@ export class LeaseService {
           actualReturnDate: new Date(),
           returnStaffId,
           leaseStatus: 'returned',
-          refundAmount: data.refundAmount,
+          refundAmount,
           notes: lease.getDataValue('notes')
             ? `${lease.getDataValue('notes')}\n${returnNotes}`
             : returnNotes,
@@ -229,18 +252,15 @@ export class LeaseService {
       );
 
       // Update cylinder status and gas volume
-      const updateData: any = { 
-        status: data.condition === 'damaged' ? 'damaged' : 'available' 
+      const updateData: any = {
+        status: data.condition === 'damaged' ? 'damaged' : 'available',
       };
-      
+
       if (data.gasRemaining !== undefined) {
         updateData.currentGasVolume = data.gasRemaining;
       }
-      
-      await Cylinder.update(
-        updateData,
-        { where: { id: (cylinder as any).id }, transaction: t }
-      );
+
+      await Cylinder.update(updateData, { where: { id: (cylinder as any).id }, transaction: t });
 
       if (!transaction) {
         await t.commit();
@@ -280,19 +300,19 @@ export class LeaseService {
     const offset = (page - 1) * limit;
 
     const where: any = {};
-    
+
     if (filters.cylinderId) {
       where.cylinderId = filters.cylinderId;
     }
-    
+
     if (filters.customerId) {
       where.customerId = filters.customerId;
     }
-    
+
     if (filters.outletId) {
       where.outletId = filters.outletId;
     }
-    
+
     if (filters.status) {
       where.status = filters.status.toUpperCase();
     }
@@ -653,7 +673,9 @@ export class LeaseService {
       cylinderType: cylinder?.type || 'Standard',
       cylinderSize: '20kg', // Default size - could be enhanced with actual cylinder size data
       leaseStartDate: new Date(leaseRecord.leaseDate),
-      expectedReturnDate: leaseRecord.expectedReturnDate ? new Date(leaseRecord.expectedReturnDate) : undefined,
+      expectedReturnDate: leaseRecord.expectedReturnDate
+        ? new Date(leaseRecord.expectedReturnDate)
+        : undefined,
       leaseCost: parseFloat(leaseRecord.leaseAmount.toString()),
       depositAmount: parseFloat(leaseRecord.depositAmount.toString()),
       outletName: outlet?.name || 'Unknown Outlet',
@@ -661,19 +683,17 @@ export class LeaseService {
       staffName: staff ? `${staff.firstName} ${staff.lastName}`.trim() : 'Staff Member',
       returnInstructions,
       companyName: process.env.COMPANY_NAME || 'CylinderX',
-      supportEmail: process.env.SUPPORT_EMAIL || 'support@cylinderx.com'
+      supportEmail: process.env.SUPPORT_EMAIL || 'support@cylinderx.com',
     };
 
     const emailTemplate = new LeaseConfirmationEmail(emailData);
     const emailService = new EmailService();
-    
-    await emailService.sendEmail(
-      emailData.to,
-      emailTemplate.getSubject(),
-      emailTemplate.getHtml()
-    );
 
-    logger.info(`Lease confirmation email sent to ${customer.email} for lease ID: ${leaseRecord.id}`);
+    await emailService.sendEmail(emailData.to, emailTemplate.getSubject(), emailTemplate.getHtml());
+
+    logger.info(
+      `Lease confirmation email sent to ${customer.email} for lease ID: ${leaseRecord.id}`
+    );
   }
 }
 

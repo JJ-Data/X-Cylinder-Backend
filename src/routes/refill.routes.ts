@@ -14,6 +14,13 @@ router.use(authenticate);
 // Apply outlet access control for operators
 router.use(enforceOutletAccess);
 
+// Get pricing quote for refill (Admin, Staff, and Refill Operators)
+router.get(
+  '/quote',
+  authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF, CONSTANTS.USER_ROLES.REFILL_OPERATOR),
+  refillController.getRefillQuote
+);
+
 // Create a new refill (Admin, Staff, and Refill Operators)
 router.post(
   '/',

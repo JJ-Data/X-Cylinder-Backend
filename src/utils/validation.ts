@@ -203,12 +203,12 @@ export const leaseValidation = {
   }).or('cylinderId', 'cylinderCode', 'qrCode'),
 
   return: Joi.object({
-    leaseId: commonSchemas.id.required(),
-    refundAmount: Joi.number().min(0).required(),
-    condition: Joi.string().valid('good', 'damaged', 'needs_inspection').default('good'),
+    refundAmount: Joi.number().min(0).optional(), // Made optional - auto-calculated if not provided
+    condition: Joi.string().valid('good', 'poor', 'damaged').default('good'),
     gasRemaining: Joi.number().min(0).optional(),
     damageNotes: Joi.string().trim().max(500).optional(),
-    notes: Joi.string().trim().optional(),
+    notes: Joi.string().trim().allow('', null).optional(),
+    returnDate: Joi.date().optional(), // Support frontend field
   }),
 
   query: Joi.object({

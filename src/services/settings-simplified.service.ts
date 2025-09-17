@@ -174,11 +174,18 @@ export class SimplifiedSettingsService {
     
     switch (operationType) {
       case OperationType.LEASE:
-        const leaseKey = cylinderType ? `lease.base_price.${cylinderType}` : 'lease.base_price';
-        const depositKey = cylinderType ? `lease.deposit.${cylinderType}` : 'lease.deposit';
+        // Get per-KG pricing
+        const feePerKg = await this.getSetting('lease.fee_per_kg', outletId) || 0;
+        const depositPerKg = await this.getSetting('lease.deposit_per_kg', outletId) || 0;
         
-        settings.basePrice = await this.getSetting(leaseKey, outletId) || 0;
-        settings.deposit = await this.getSetting(depositKey, outletId) || 0;
+        // Extract cylinder size from cylinderType (e.g., "12kg" -> 12)
+        const cylinderSize = cylinderType ? parseInt(cylinderType.replace(/[^\d]/g, '')) || 12 : 12;
+        
+        settings.basePrice = feePerKg * cylinderSize;
+        settings.deposit = depositPerKg * cylinderSize;
+        settings.feePerKg = feePerKg;
+        settings.depositPerKg = depositPerKg;
+        settings.cylinderSize = cylinderSize;
         break;
         
       case OperationType.REFILL:
@@ -243,21 +250,23 @@ export class SimplifiedSettingsService {
    */
   async initializeDefaultSettings(createdBy: number = 1): Promise<void> {
     const defaultSettings = [
-      // Lease settings
-      { categoryId: 1, key: 'lease.base_price.12kg', value: 50, dataType: DataType.NUMBER },
-      { categoryId: 1, key: 'lease.base_price.25kg', value: 75, dataType: DataType.NUMBER },
-      { categoryId: 1, key: 'lease.base_price.50kg', value: 100, dataType: DataType.NUMBER },
-      { categoryId: 1, key: 'lease.deposit.12kg', value: 500, dataType: DataType.NUMBER },
-      { categoryId: 1, key: 'lease.deposit.25kg', value: 750, dataType: DataType.NUMBER },
-      { categoryId: 1, key: 'lease.deposit.50kg', value: 1000, dataType: DataType.NUMBER },
+      // Lease settings - per KG pricing
+      { categoryId: 1, key: 'lease.fee_per_kg', value: 1000, dataType: DataType.NUMBER },
+      { categoryId: 1, key: 'lease.deposit_per_kg', value: 500, dataType: DataType.NUMBER },
+      
+      // Return penalty settings - based on cylinder condition
+      { categoryId: 1, key: 'return.penalty.good', value: 0, dataType: DataType.NUMBER },
+      { categoryId: 1, key: 'return.penalty.poor', value: 500, dataType: DataType.NUMBER },
+      { categoryId: 1, key: 'return.penalty.damaged', value: 2000, dataType: DataType.NUMBER },
       
       // Refill settings
       { categoryId: 2, key: 'refill.price_per_kg', value: 10, dataType: DataType.NUMBER },
       { categoryId: 2, key: 'refill.minimum_charge', value: 50, dataType: DataType.NUMBER },
       
-      // Swap settings
-      { categoryId: 3, key: 'swap.fee.standard', value: 0, dataType: DataType.NUMBER },
-      { categoryId: 3, key: 'swap.fee.damaged', value: 200, dataType: DataType.NUMBER },
+      // Swap settings - based on cylinder condition
+      { categoryId: 3, key: 'swap.fee.good', value: 0, dataType: DataType.NUMBER },
+      { categoryId: 3, key: 'swap.fee.poor', value: 200, dataType: DataType.NUMBER },
+      { categoryId: 3, key: 'swap.fee.damaged', value: 500, dataType: DataType.NUMBER },
       
       // General settings
       { categoryId: 4, key: 'tax.rate', value: 7.5, dataType: DataType.NUMBER },
@@ -295,7 +304,20 @@ export class SimplifiedSettingsService {
       case DataType.BOOLEAN:
         return typeof value === 'boolean' ? value : value === 'true';
       default:
-        return String(value);
+        // Handle double-escaped JSON strings
+        let stringValue = String(value);
+        
+        // Check if the string is double-escaped JSON (starts and ends with quotes)
+        if (stringValue.startsWith('"') && stringValue.endsWith('"')) {
+          try {
+            // Try to parse it as JSON to remove the extra quotes
+            stringValue = JSON.parse(stringValue);
+          } catch (e) {
+            // If parsing fails, use the original string
+          }
+        }
+        
+        return stringValue;
     }
   }
 }

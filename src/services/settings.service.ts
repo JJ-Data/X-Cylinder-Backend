@@ -150,11 +150,12 @@ export class SettingsService {
       whereClause.cylinderType = null;
     }
 
-    if (scope.customerTier) {
-      whereClause.customerTier = scope.customerTier;
-    } else {
-      whereClause.customerTier = null;
-    }
+    // customerTier removed during simplification
+    // if (scope.customerTier) {
+    //   whereClause.customerTier = scope.customerTier;
+    // } else {
+    //   whereClause.customerTier = null;
+    // }
 
     if (scope.operationType) {
       whereClause.operationType = scope.operationType;
@@ -402,7 +403,7 @@ export class SettingsService {
     settingsByScope: {
       global: number;
       outlet: number;
-      customerTier: number;
+      // customerTier: number; // Removed during simplification
       cylinderType: number;
       complex: number;
     };
@@ -464,14 +465,14 @@ export class SettingsService {
     }
 
     // Get settings by scope
-    const [globalSettings, outletSettings, customerTierSettings, cylinderTypeSettings] =
+    const [globalSettings, outletSettings, cylinderTypeSettings] =
       await Promise.all([
         BusinessSetting.count({
           where: {
             ...baseWhere,
             isActive: true,
             outletId: null,
-            customerTier: null,
+            // customerTier: null, // Removed during simplification
             cylinderType: null,
             operationType: null,
           },
@@ -481,18 +482,12 @@ export class SettingsService {
             ...baseWhere,
             isActive: true,
             outletId: { [Op.not]: null },
-            customerTier: null,
+            // customerTier: null, // Removed during simplification
             cylinderType: null,
             operationType: null,
           },
         }),
-        BusinessSetting.count({
-          where: {
-            ...baseWhere,
-            isActive: true,
-            customerTier: { [Op.not]: null },
-          },
-        }),
+        // Removed customerTier query during simplification
         BusinessSetting.count({
           where: {
             ...baseWhere,
@@ -513,7 +508,7 @@ export class SettingsService {
               { outletId: { [Op.not]: null } },
               {
                 [Op.or]: [
-                  { customerTier: { [Op.not]: null } },
+                  // { customerTier: { [Op.not]: null } }, // Removed during simplification
                   { cylinderType: { [Op.not]: null } },
                   { operationType: { [Op.not]: null } },
                 ],
@@ -549,7 +544,7 @@ export class SettingsService {
       settingsByScope: {
         global: globalSettings,
         outlet: outletSettings,
-        customerTier: customerTierSettings,
+        // customerTier: customerTierSettings, // Removed during simplification
         cylinderType: cylinderTypeSettings,
         complex: complexSettings,
       },
@@ -657,9 +652,10 @@ export class SettingsService {
     }
 
     // Check customer tier match
-    if (setting.customerTier && scope.customerTier && setting.customerTier !== scope.customerTier) {
-      return false;
-    }
+    // customerTier removed during simplification
+    // if (setting.customerTier && scope.customerTier && setting.customerTier !== scope.customerTier) {
+    //   return false;
+    // }
 
     // Check operation type match
     if (
@@ -699,7 +695,7 @@ export class SettingsService {
 
     // More specific settings get higher scores
     if (setting.operationType && scope.operationType) specificity += 8;
-    if (setting.customerTier && scope.customerTier) specificity += 4;
+    // if (setting.customerTier && scope.customerTier) specificity += 4; // Removed during simplification
     if (setting.cylinderType && scope.cylinderType) specificity += 2;
     if (setting.outletId && scope.outletId) specificity += 1;
 

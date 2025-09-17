@@ -40,7 +40,7 @@ router.post(
 
 // Return a cylinder (Staff only)
 router.post(
-  '/return',
+  '/:id/return',
   authorize(CONSTANTS.USER_ROLES.ADMIN, CONSTANTS.USER_ROLES.STAFF),
   validate(leaseValidation.return),
   leaseController.returnCylinder
