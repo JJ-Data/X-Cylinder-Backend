@@ -1,4 +1,4 @@
-# CellerHut Logistics API
+# CylinderX Logistics API
 
 A comprehensive, production-ready API for logistics management built with TypeScript, Node.js, Express, and MySQL with Sequelize ORM.
 
@@ -15,6 +15,7 @@ For detailed documentation, please visit the [docs](./docs) directory:
 ## Features
 
 ### Core Features
+
 - **TypeScript** for type safety and better developer experience
 - **Express.js** web framework with modular architecture
 - **MySQL** database with **Sequelize ORM**
@@ -30,6 +31,7 @@ For detailed documentation, please visit the [docs](./docs) directory:
 - **API Documentation** with Swagger/OpenAPI
 
 ### Enhanced Features
+
 - **Email Service** with multiple provider support (AWS SES, SendGrid, Resend, SMTP)
 - **Email Verification** system with secure token generation
 - **Password Reset** functionality with email notifications
