@@ -1,6 +1,9 @@
 {
   "name": "cylinderx-api",
   "version": "1.0.0",
+  "engines": {
+    "node": "20"
+  },
   "description": "CylinderX API - A comprehensive TypeScript Node.js Express MySQL application with JWT authentication",
   "main": "dist/server.js",
   "scripts": {
