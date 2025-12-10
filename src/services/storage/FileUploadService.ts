@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
-import { fileTypeFromBuffer } from 'file-type';
+import FileType from 'file-type';
 import mime from 'mime-types';
 import {
   StorageProvider,
@@ -365,7 +365,7 @@ export class FileUploadService {
 
     // Validate file content (magic bytes)
     if (options.validateContent) {
-      const fileType = await fileTypeFromBuffer(buffer);
+      const fileType = await FileType.fromBuffer(buffer);
       if (!fileType) {
         throw new Error('Could not determine file type from content');
       }
@@ -384,7 +384,7 @@ export class FileUploadService {
     originalName: string
   ): Promise<{ mimeType: string; extension: string }> {
     // Try to detect from buffer
-    const detected = await fileTypeFromBuffer(buffer);
+    const detected = await FileType.fromBuffer(buffer);
     if (detected) {
       return {
         mimeType: detected.mime,
