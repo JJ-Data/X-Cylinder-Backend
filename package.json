@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "rm -rf dist && tsc",
-    "start": "TS_NODE_PROJECT=tsconfig.prod.json node -r tsconfig-paths/register dist/server.js",
-    "start:prod": "pnpm db:migrate && pnpm db:seed && TS_NODE_PROJECT=tsconfig.prod.json node -r tsconfig-paths/register dist/server.js",
+    "start": "pnpm db:migrate && pnpm db:seed && TS_NODE_PROJECT=tsconfig.prod.json node -r tsconfig-paths/register dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
