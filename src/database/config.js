@@ -9,12 +9,11 @@ module.exports = {
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: console.log,
-    seederStorage: 'json',
-    seederStoragePath: 'sequelizeData.json',
-    seederStorageTableName: 'sequelizeData',
-    migrationStorage: 'json',
-    migrationStoragePath: 'sequelizeMeta.json',
-    migrationStorageTableName: 'sequelizeMeta',
+    // ✅ Persist migration/seed history inside the DB.
+    // Railway / cloud filesystems are often ephemeral, so JSON storage will
+    // "forget" what ran and lead to drift and missing columns.
+    seederStorage: 'sequelize',
+    migrationStorage: 'sequelize',
   },
   test: {
     username: process.env.DB_USER,
@@ -24,12 +23,8 @@ module.exports = {
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: false,
-    seederStorage: 'json',
-    seederStoragePath: 'sequelizeData.json',
-    seederStorageTableName: 'sequelizeData',
-    migrationStorage: 'json',
-    migrationStoragePath: 'sequelizeMeta.json',
-    migrationStorageTableName: 'sequelizeMeta',
+    seederStorage: 'sequelize',
+    migrationStorage: 'sequelize',
   },
   production: {
     username: process.env.DB_USER,
@@ -39,12 +34,8 @@ module.exports = {
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: false,
-    seederStorage: 'json',
-    seederStoragePath: 'sequelizeData.json',
-    seederStorageTableName: 'sequelizeData',
-    migrationStorage: 'json',
-    migrationStoragePath: 'sequelizeMeta.json',
-    migrationStorageTableName: 'sequelizeMeta',
+    seederStorage: 'sequelize',
+    migrationStorage: 'sequelize',
     pool: {
       max: 5,
       min: 0,
