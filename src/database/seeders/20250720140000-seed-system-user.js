@@ -68,6 +68,12 @@ module.exports = {
     const passKey = pick(cols, ['password', 'password_hash', 'passwordHash', 'hash']);
     if (passKey) row[passKey] = '!';
 
+    // names (support schemas that use first_name/last_name)
+    if (cols.first_name) row.first_name = 'System';
+    if (cols.last_name) row.last_name = 'User';
+    if (cols.firstName) row.firstName = 'System';
+    if (cols.lastName) row.lastName = 'User';
+
     await queryInterface.bulkInsert('users', [row]);
   },
 
