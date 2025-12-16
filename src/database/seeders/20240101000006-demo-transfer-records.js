@@ -3,6 +3,22 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    // Defensive: only insert columns that exist in the current DB schema.
+    let transferTable;
+    try {
+      transferTable = await queryInterface.describeTable('transfer_records');
+    } catch (e) {
+      console.log('transfer_records table not found, skipping demo transfer records');
+      return;
+    }
+
+    const pickCols = (obj) => {
+      const out = {};
+      for (const k of Object.keys(obj)) {
+        if (transferTable[k]) out[k] = obj[k];
+      }
+      return out;
+    };
     // Get outlets
     const outlets = await queryInterface.sequelize.query(
       `SELECT id FROM outlets WHERE status = 'active' ORDER BY id`,
@@ -16,13 +32,13 @@ module.exports = {
     
     // Get staff members who can perform transfers
     const staff = await queryInterface.sequelize.query(
-      `SELECT id, outlet_id FROM users WHERE role IN ('admin', 'staff') ORDER BY id`,
+      `SELECT id, outlet_id FROM users WHERE role IN ('admin','user') AND outlet_id IS NOT NULL ORDER BY id`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     );
     
     // Get some cylinders to transfer
     const cylinders = await queryInterface.sequelize.query(
-      `SELECT id, current_outlet_id FROM cylinders WHERE status = 'available' ORDER BY id LIMIT 10`,
+      `SELECT id, outlet_id FROM cylinders WHERE status = 'available' ORDER BY id LIMIT 10`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     );
     
@@ -32,7 +48,7 @@ module.exports = {
     cylinders.forEach((cylinder, index) => {
       // Create 1-2 transfer records per cylinder
       const numTransfers = Math.floor(Math.random() * 2) + 1;
-      let currentOutletId = cylinder.current_outlet_id;
+      let currentOutletId = cylinder.outlet_id;
       
       for (let i = 0; i < numTransfers; i++) {
         // Find a different outlet to transfer to
@@ -70,8 +86,9 @@ module.exports = {
       // Update the cylinder's current outlet to match the last transfer
       if (transferRecords.length > 0) {
         const lastTransfer = transferRecords[transferRecords.length - 1];
+        // Align with current cylinders schema: update outlet_id
         await queryInterface.sequelize.query(
-          `UPDATE cylinders SET current_outlet_id = ${lastTransfer.to_outlet_id} WHERE id = ${cylinder.id}`
+          `UPDATE cylinders SET outlet_id = ${lastTransfer.to_outlet_id} WHERE id = ${cylinder.id}`
         );
       }
     });
@@ -80,7 +97,8 @@ module.exports = {
       // Sort by date to ensure proper ordering
       transferRecords.sort((a, b) => a.transfer_date.getTime() - b.transfer_date.getTime());
       
-      await queryInterface.bulkInsert('transfer_records', transferRecords, {});
+      const rows = transferRecords.map(pickCols);
+      await queryInterface.bulkInsert('transfer_records', rows, {});
     }
   },
 

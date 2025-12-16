@@ -3,7 +3,23 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.bulkInsert('outlets', [
+    let outletsTable;
+    try {
+      outletsTable = await queryInterface.describeTable('outlets');
+    } catch (e) {
+      console.log('outlets table not found, skipping demo outlets');
+      return;
+    }
+
+    const pickCols = (obj) => {
+      const out = {};
+      for (const k of Object.keys(obj)) {
+        if (outletsTable[k]) out[k] = obj[k];
+      }
+      return out;
+    };
+
+    const rows = [
       {
         name: 'Main Outlet',
         location: '123 Main Street, City Center',
@@ -44,7 +60,9 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date()
       }
-    ], {});
+    ].map(pickCols);
+
+    await queryInterface.bulkInsert('outlets', rows, {});
   },
 
   async down(queryInterface, Sequelize) {
